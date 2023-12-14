@@ -17,6 +17,8 @@ H = 12.0;
 anglestep=60; // angle distance between slices (hex)
 //anglestep=90; // angle distance between slices (square)
 
+num_handles=2; // 1 is doable, but a little tricky to unwind
+
 
 anglecos=cos(anglestep/2+0.01); // X width of slices
 anglesin=2*sin(anglestep/2+0.01); // Y width of slices
@@ -64,12 +66,15 @@ module make_set(outsetR=0,outsetZ=0)
 // Make a sealing handle, to split the part after casting
 module make_handle(width,holes=0,height=H/2)
 {
-    inset=2; // start parts this far in, so they're solid
-    translate([0,R+height/2-inset/2,H/2])
+    for (angle=[0:360/num_handles:360-1]) rotate([0,0,angle])
     {
-        cube([width,height+holes*2+inset,H],center=true);
-        
-        rotate([0,90,0]) cylinder(d=2,h=10,center=true); // for copper wire
+        inset=2; // start parts this far in, so they're solid
+        translate([0,R+height/2-inset/2,H/2])
+        {
+            cube([width,height+holes*2+inset,H],center=true);
+            
+            rotate([0,90,0]) cylinder(d=2,h=10,center=true); // for copper wire
+        }
     }
 }
 
