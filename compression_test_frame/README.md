@@ -20,7 +20,7 @@ Example test results:
 *    Break force = 5x 100 kg = 500 kgf
 *    Mortar unconfined compressive strength = 500 kgf / ((7.5mm)^2*pi) in MPa = 27 MPa (3,900 psi)
 
-Being made from wood, this only gives a rough strength estimate, but can be quantitative to 1-2 significant figures to guide mixture development.  DO NOT USE THIS FOR BUILDINGS OR SAFETY CRITICAL STRENGTH TESTING.
+Being made from wood, and loaded by foot weight, this only gives a rough strength estimate, but can be quantitative to 1-2 significant figures to guide mixture development.  DO NOT USE THIS FOR BUILDINGS OR SAFETY CRITICAL STRENGTH TESTING.
 
 
 ## Assembly Process
@@ -31,11 +31,13 @@ The top and bottom beams should be 800 mm to 1100 mm long, and the top beam shou
 
 Compressive forces are taken by 5 mm thick (3/16 inch) steel plates.  A 25mm wide x 150mm long (1" x 6") plate worked.
 
-The pivot bolt is a steel bolt or rod of at least 8mm (5/16") diameter.  It needs to be long enough to go through three frame sections, so at least 130mm (5") long. 
+The pivot bolt is a steel bolt or rod of at least 8mm (5/16") diameter.  It needs to be long enough to go through three wood frame sections (two uprights and the top beam), so at least 130mm (5") long. 
 
 Two wood uprights are permanently fixed to the bottom beam.  The pivot bolt goes through the uprights, allowing the top beam to swing open easily.
 
-The steel plates are fixed to the top and bottom beams using wood screws and glue. This is particularly critical for the top beam, where the uplift forces on the pivot point go through the steel and screws to get to the top beam. Countersinking the holes helps the wood screws hold to the steel. We found expanding polyurethane glue worked well to hold everything together.
+The steel plates are fixed to the top and bottom beams using wood screws and glue. This is particularly critical for the top beam, where the uplift forces on the pivot point go through the steel and screws to get to the top beam. Pre-drilling the wood is important to avoid cracking. Countersinking the screw holes into the steel helps the wood screws hold to the steel. 
+
+We found a generous application of expanding polyurethane wood glue worked well to hold everything together.  We have tested this to 600kgf without issues, but the wood parts like the top beam seem likely to be pulled apart if the load gets high enough.
 
 ![Tool details, printable page preview](compression_test_frame.png)
 
