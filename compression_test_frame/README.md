@@ -2,19 +2,19 @@
 
 This wood frame can amplify the operator's weight by up to 15x, allowing unconfined compressive strength testing of even high strength 15mm x 30mm mortar or geopolymer cylinders. This is not intended to replace lab testing, but is for estimating the strength of novel mixtures with backyard technology.
 
-[Assembled tool overview photos](overview_arrows.jpg)
+![Assembled tool overview photos](overview_arrows.jpg)
 
 The basic idea is that the cylinder is loaded 100mm from the pivot bolt, and by moving their weight farther from the pivot point, the operator can apply increasing force to the test cylinder.
 
-[Assembled tool overview diagram](compression_test_frame_whole.png)
+![Assembled tool overview diagram](compression_test_frame_whole.png)
 
 For example, if the operator weighs 100 kg including shoes and safety gear, then standing 100 mm from the pivot point puts all 100 kgf down onto the test cylinder.  Standing 200 mm from the pivot point puts 200 kgf on the test cylinder, 300 mm puts 300 kgf on the test cylinder, and so on.  If the top beam is too short to give enough leverage to break the cylinder, the cylinder can be moved only 50 mm from the pivot, which doubles the above forces. 
 
 Once the cylinder breaks, the operator drops only a short distance (but should still be careful to do this in a safe area, wearing appropriate protective equipment). 
 
-Example:
-*    15 mm x 30 mm ice-bonded mortar cylinder
-*    Cylinder loaded 100mm from pivot bolt
+Example test results:
+*    Testing a 15 mm x 30 mm ice-bonded mortar cylinder
+*    Cylinder loaded 100mm from pivot bolt and top beam closed on it
 *    Operator weight 100 kg including shoes and safety gear
 *    Breaks at position 5x, 500mm from pivot point
 *    Break force = 5x 100 kg = 500 kgf
@@ -37,7 +37,7 @@ Two wood uprights are permanently fixed to the bottom beam.  The pivot bolt goes
 
 The steel plates are fixed to the top and bottom beams using wood screws and glue. This is particularly critical for the top beam, where the uplift forces on the pivot point go through the steel and screws to get to the top beam. Countersinking the holes helps the wood screws hold to the steel. We found expanding polyurethane glue worked well to hold everything together.
 
-[Tool details, printable page preview](compression_test_frame.png)
+![Tool details, printable page preview](compression_test_frame.png)
 
 This diagram is also available as a printable PDF [printable page](compression_test_frame.pdf).
 
