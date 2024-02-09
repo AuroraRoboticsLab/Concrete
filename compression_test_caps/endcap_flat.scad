@@ -1,12 +1,5 @@
 /*
-
-  Miniature-scale concrete mix test jig.
-  Target is 10 grams (dry weight) per cylinder, about 5 cc.
-
-  With R=7.5 this makes 15x30mm cylinders. 
-  
-  At layer=3 the silicone volume required is about 40cc,
-  seems to need at least 47 grams of silicone-cure AB pourable.
+  Caps for unconfined compressive strength testing of cylinders.
   
   Dr. Orion Lawlor, lawlor@alaska.edu, 2024-01 (Public Domain)
 */
