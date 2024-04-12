@@ -56,7 +56,7 @@ function make_slices(loZ,offZ=0) = [
         for (x=[0:stepX:1]) 
         [
             x*szX, y*szY,
-            limit(szZ/2*(1.0+steep*cos(x*360.0*lobeX)*cos(y*360.0*lobeY))+offZ,
+            limit(szZ/2*(1.0-steep*cos(x*360.0*lobeX)*cos(y*360.0*lobeY))+offZ,
                 0,szZ)
         ],
     ],
