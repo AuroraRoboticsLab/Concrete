@@ -1,4 +1,4 @@
-= Volor 3D Printer
+# Volor 3D Printer
 
 A CoreXY printer designed with a welded steel frame and steel linear rails.
 
