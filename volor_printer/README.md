@@ -8,3 +8,5 @@ Uses 5/16" or 8mm bolts to hold steel washers and 608 (skate) bearings on which 
 
 Belt length is almost exactly 2 meters for 400mm rails, 350mm travel.
 
+I wired this with an old Melzi 2.0 control board, but any 3D printer or CNC control board will work.  cncjs works well as the user interface controller.
+
