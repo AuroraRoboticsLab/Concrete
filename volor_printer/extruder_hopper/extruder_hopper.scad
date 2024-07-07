@@ -64,6 +64,9 @@ M3_shaftOD = 3.1;
 M3_headOD = 6.1;
 M3_headZ = 3.2;
 
+M3_insertOD=3.8; // space for heat-insert bit
+M3_insertZ=6;
+
 /* --------------- Geartrain ------------------
  Input side: connects to the D shaft of a NEMA 17 stepper motor.
  Output side: connects to the hex shaft of the auger itself
@@ -277,10 +280,10 @@ module geartrain_assembled()
 // Printable parts in geartrain, ready for printing
 module geartrain_printable() {
     d=stepper_center[1]*1.1; // distance between parts
-    //translate([0,0,gear_thickness]) rotate([180,0,0]) gear_auger();
+    translate([0,0,gear_thickness]) rotate([180,0,0]) gear_auger();
     translate([0,d,0]) gear_stepper();
-    //translate([d,0,0]) auger_clamp();
-    //translate([0.8*d,0.8*d,0]) auger_bearing_stack();
+    translate([d,0,0]) auger_clamp();
+    translate([0.8*d,0.8*d,0]) auger_bearing_stack();
 }
 
 module geartrain_cover_printable() {
@@ -465,7 +468,7 @@ module hopper_exterior()
         // top bolt tappable holes
         for_hopper_plate_bolts() {
             cylinder(d=M3_tapID,h=25,center=true); // tappable on top
-            translate([0,0,-11]) cylinder(d=4,h=6); // space for 4mm dia x 5mm high insert underneath
+            translate([0,0,-11]) cylinder(d=M3_insertOD,h=M3_insertZ); // space for 4mm dia x 5mm high insert underneath
         }
         // carve out interior of hopper
         hopper_shape(0.0);
@@ -564,17 +567,21 @@ auger_thread_edgeOD=25; // edge cross section thickness (plus some clearance)
 auger_thread_OD=1*inch + 1; // outside size of auger (plus some clearance)
 
 inducer_Z_end=-60; // top of inducer, threads on
-inducer_Z_cylinder=-90; // height where mounting cylinder starts
+inducer_Z_cylinder=-100; // height where mounting cylinder starts
 inducer_Z_endspiral=-178; // top of spiral area
 inducer_Z_start=-218; // bottom of inducer, tips
 
 inducer_wall=3.5; // thickness of body of inducer
-inducer_spiral_wall=5; // thickness of bottom spiral
-inducer_bladeW=8; // thickness of wiper blade of inducer (needs to be thick to resist torsion)
-inducer_bladeR=auger_thread_OD*0.5; // start in XY plane
-inducer_mountD = pipe_ID+2*inducer_wall; // size of mounting cylinder
 
 inducer_hopper_clearance=3; // distance between inducer and hopper (allow assembly, reduce grinding)
+
+inducer_bladeW=10.3; // width + clearance for steel wiper blade of inducer (needs to be thick to resist torsion)
+inducer_bladeH=2; // thickness of slot for steel strip
+inducer_bladeR=hopper_coneR - inducer_hopper_clearance; // radius of main blade in XY plane
+inducer_blade_mount=2; // plastic around the blade itself
+
+inducer_mountD = pipe_ID+2*inducer_wall; // size of mounting cylinder
+
 
 inducer_Z_threadstop=-75; // Z height where auger helix threading stops
 
@@ -622,49 +629,9 @@ module inducer_thread_space() {
     }
 }
 
-// Spiral shape of inducer
-module inducer_spiral() {
-    // "Wings" spiraling down
-    z=inducer_Z_endspiral-inducer_Z_start;
-    augertwist=-z/auger_thread_pitch*360; // twists in auger
-    
-    translate([0,0,inducer_Z_start]) 
-    linear_extrude(height=z,
-        twist=augertwist,
-        convexity=4) 
-    difference() 
-    {
-        startangle=-45; // times the auger and inducer threads
-        
-        for (angle=[0]) rotate([0,0,startangle+angle])
-        intersection() {
-            // circular sweep edges to scrape and push material down,
-            //   and be stiffer than straight edges
-            r=hopper_coneR*0.6;
-            
-            //rotate([0,0,-20])
-            ID = pipe_ID + 5;
-            translate([0,ID*0.5+r*0.50]) 
-            difference() {
-                circle(r=r);
-                circle(r=r-2*inducer_spiral_wall); //<- helix thins the wall
-            }
-            
-            
-            // limit to bottom right half
-            limit=ID+hopper_coneR*1.2;
-            translate([0,-limit/2]) 
-                square([limit,limit]);
-        }
-        
-        // central hole for auger
-        circle(d=auger_thread_OD);
-    }
-}
-
 // Swept volume of inducer
 module inducer_profile_3D(enlarge=0,shift_exit=0) {
-    top_taper=3; // increase in wall thickness on top surface
+    top_taper=1; // increase in wall thickness on top surface
     hull() {
         // Must fit inside hopper
         hopper_bulge_exit(-inducer_hopper_clearance+enlarge,shift_exit);
@@ -675,101 +642,75 @@ module inducer_profile_3D(enlarge=0,shift_exit=0) {
     }
 }
 
-// Inducer blade top-down 2D profile
-module inducer_blade_top2D() 
+// Top-down view of 2D slot for blade
+module inducer_blade_top2D(enlarge = 0)
 {
-    armR = 0.75*hopper_coneR; // length of support arm
-    
+    square([(inducer_bladeW+2*enlarge),2*inducer_bladeR],center=true); // main arms
+}
+module inducer_blade_top3D() 
+{
+    bottom = inducer_Z_start;
+    translate([0,0,inducer_Z_start])
+        linear_extrude(height=inducer_Z_end - inducer_Z_start,convexity=4) {
+            inducer_blade_top2D();
+        }
+}
+
+// Inducer body top-down 2D profile
+module inducer_body_top2D() 
+{
     union() {
-        translate([inducer_bladeR,0]) scale([1,-1,1]) 
-            square([inducer_bladeW,2*armR]);
         hull() 
         {
-            circle(d=inducer_mountD);
-            translate([inducer_bladeR,inducer_mountD/4]) scale([1,-1,1]) 
-                square([inducer_bladeW,inducer_mountD/4+armR]);
+            inducer_blade_top2D(enlarge = inducer_blade_mount); // main arms
+            
+            circle(d=inducer_mountD); // central bulge
         }
     }
 }
-
-// Inducer outside wiper blade, to scrape material from outside of hopper
-module inducer_blade() 
+// Inducer main body
+module inducer_body() 
 {
     intersection() {
         union() {
-            // Main blade is just a flat block (so it's printable)
-            blade_end_Y=5;
-            translate([inducer_bladeR,blade_end_Y,inducer_Z_start]) scale([1,-1,1]) // face -Y
-                cube([inducer_bladeW,hopper_coneR+blade_end_Y,inducer_Z_end-inducer_Z_start]);
             
             // Add support arm on top of blade
-            armZ = 32; // height limit (mostly set by cylinder profile)
-            translate([0,0,inducer_Z_end-armZ])
-                linear_extrude(height=armZ,convexity=4) {
-                    difference() {
-                        round=7;
-                        offset(r=-round) offset(r=+round)
-                        inducer_blade_top2D();
-                        
-                        // lighten hole in middle?
-                        //rotate([0,0,25]) translate([0,-22,0]) scale([1,1.4]) circle(d=14);
-                    }
+            translate([0,0,inducer_Z_cylinder])
+                linear_extrude(height=inducer_Z_end - inducer_Z_cylinder,convexity=4) {
+                    inducer_body_top2D();
                 }
              
-             // Add fillets where blade attaches to spiral
-             fillet=18;
-             translate([inducer_mountD/2,-hopper_coneR/2,inducer_Z_endspiral-2])
-                rotate([10,0,0]) rotate([0,45,0])
-                    cube([fillet,32,fillet],center=true);
         }
         
-        // Trim to fit in the overall profile
         difference() {
+            // Trim to fit in the overall profile
             inducer_profile_3D(0); // interior of hopper
-            inducer_profile_3D(-inducer_bladeW); // main hole (to let material through)
             
-            // Offset interior to trim to angle the interior blade cutting angle
-            translate([(inducer_bladeR+inducer_bladeW/2)*2,-2,0])
-                inducer_profile_3D(-inducer_bladeW,-2.0);
-            
-            // Trim off the bottom tip to match spiral
-            translate([pipe_ID/2,0,inducer_Z_start+3])
-                rotate([15,10,0]) // tilt to roughly match spiral's helix
-                    translate([0,0,-50]) cube([100,100,100],center=true); // trim flat -Z
-            
+            // Cut recessed slot for actual stainless blade
+            difference() {
+                inducer_blade_top3D();
+                inducer_profile_3D(-inducer_bladeH);
+                
+                translate([0,0,inducer_Z_cylinder])
+                    cylinder(d=inducer_mountD,h=100,center=true);
+            }
         }
     }
     
 }
 
-inducer_mountscrew_center=[inducer_bladeR+inducer_bladeW,0,inducer_Z_end-21];
+inducer_mountscrew_center=[auger_thread_OD*0.5+inducer_bladeW,0,inducer_Z_end-20];
 inducer_mountscrew_rotate=[0,-90,0];
-
-// Mounting block that threads onto auger
-module inducer_mountblock()
-{
-    // Solid mounting cylinder on top
-    translate([0,0,inducer_Z_cylinder])
-        cylinder(d=inducer_mountD,h=inducer_Z_end-inducer_Z_cylinder);
-    
-    // Boss around the one mounting screw
-    translate(inducer_mountscrew_center) rotate(inducer_mountscrew_rotate)
-        cylinder(d=16,h=20);    
-}
 
 // Full inducer shape
 module inducer() {
     difference() {
         union() {
-            intersection() {
-                union() {
-                    inducer_mountblock();
-                    inducer_spiral();
-                }
-                inducer_profile_3D();
-            }
-            
-            inducer_blade();
+            inducer_body(); // steel part added later
+
+            // Extra material around mount screw (for strength)
+            translate(inducer_mountscrew_center) rotate(inducer_mountscrew_rotate)
+                cylinder(d1=16,d2=32,h=8);
         }
         
         // Inducer threads onto the auger
@@ -777,7 +718,10 @@ module inducer() {
         
         // Main mounting screw engages ground gap in auger flites
         translate(inducer_mountscrew_center) rotate(inducer_mountscrew_rotate)
+        {
             cylinder(d=M3_tapID,h=40,center=true);    
+            translate([0,0,4]) cylinder(d=M3_insertOD,h=20);
+        }
         
         // Backup diagonal M3 grubscrew to hold inducer to auger
         translate([0,-inducer_mountD/2,inducer_Z_end]) rotate([-90-45,0,0])
@@ -785,14 +729,49 @@ module inducer() {
         
         
         
-        // Trim off a flat spot to make the assembly printable
-        translate([inducer_bladeR+inducer_bladeW+100,0,0]) cube([200,200,800],center=true);
+        // Screws to hold and align the blade strip steel
+        #for (side=[-1,+1]) scale([1,side,1])
+            for (y=[0.5, 0.8])
+                translate([0,y*hopper_coneR,inducer_Z_end+5-0.5*y*hopper_coneR])
+                    rotate([180-30,0,0])
+                    {
+                        cylinder(d=M3_tapID,h=50);
+                        translate([0,0,10])
+                            cylinder(d=M3_insertOD,d2=M3_insertOD*2,h=50);
+                    }
+        
+        // Cutaway
+        //translate([0,0,-200]) cube([200,200,200]);
     }
 }
 
 // Print from base up
 module inducer_printable() {
-    rotate([0,90,0]) inducer();
+    inducer();
+}
+
+// Sketch for stainless steel blade
+module inducer_blade() {
+    color([0.4,0.4,0.5])
+    difference() {
+        union() {
+            translate([0,0,inducer_Z_start]) cylinder(d=inducer_mountD,h=inducer_bladeH);
+            intersection() {
+                inducer_blade_top3D();
+                difference() {
+                    inducer_profile_3D(-0.01); // interior of hopper
+                    inducer_profile_3D(-inducer_bladeH); // interior of hopper
+                    translate([0,0,inducer_Z_end]) cylinder(d=inducer_mountD,h=25,center=true);
+                }
+            }
+        }
+        inducer_thread_space();
+    }
+}
+
+// 2D (printable) cross section of blade
+module inducer_blade_section() {
+    projection(cut=true) rotate([0,90,0]) inducer_blade();
 }
 
 
@@ -880,6 +859,7 @@ module extruder_demo() {
     translate([0,0,2]) geartrain_assembled();
     
     inducer();
+    inducer_blade();
     
     translate([0,0,hopper_bottom-4*inch]) rotate([180,0,0]) nozzle();
     
@@ -887,14 +867,16 @@ module extruder_demo() {
 }
 
 
-extruder_demo();
-//inducer();
+extruder_demo(); // Entire assembly
 
 //hopper_shape(); // interior, for volume estimation
 
+
+// 3D printable parts:
 //hopper_printable();
 //hopper_mount_plate_2D();
 //inducer_printable();
+//inducer_blade_section();
 //geartrain_printable();
 //geartrain_cover_printable();
 //nozzle();
