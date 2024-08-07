@@ -97,19 +97,21 @@ gearZ_stepper = gearZ_auger + gear_thickness + 15; // face of stepper lets shaft
 
 // location of stepper relative to auger top
 stepper_center = [0,gear_clearance + gear_dist(mod=gear_module, teeth1=gear_teeth_stepper, teeth2=gear_teeth_auger), gearZ_stepper];
-stepper_rotate = [180,0,-55];
+stepper_rotate = [180,0,-45];
 
 // Gear on stepper's output shaft.  Origin is base of gear
 module gear_stepper() {
-    boss_OD=14;
+    boss_OD=16;
+    taper=2; // Z taper leading into gear
     boss_Z=18; // full length of stepper's shaft, minus mount plate thickness
     boss_tapD=M3_tapID; // tapped for M3 setscrew
     
     shaft_ID=5;
     difference() {
         union() {
-            spur_gear(teeth=gear_teeth_stepper, mod=gear_module, thickness=gear_thickness, anchor=BOTTOM);
-            translate([0,0,gear_thickness-0.01]) cylinder(d=boss_OD,h=boss_Z-gear_thickness);
+            spur_gear(teeth=gear_teeth_stepper, mod=gear_module, thickness=gear_thickness+taper, anchor=BOTTOM);
+            translate([0,0,gear_thickness-0.01]) cylinder(r1=pitch_radius(teeth=gear_teeth_stepper, mod=gear_module), r2=boss_OD/2, h=taper);
+            translate([0,0,gear_thickness+taper-0.01]) cylinder(d=boss_OD,h=boss_Z-gear_thickness-taper);
         }
         
         difference() {
@@ -190,15 +192,12 @@ module gear_auger() {
 
 hopper_bearing_stack_OD = 32; // diameter of the auger bearing part
 
-// Cylinder underneath gear plate, spaces the auger thrust bearing
-module auger_bearing_stack() {
+// Internal parts for auger bearing stack
+module auger_bearing_stack_internals() {
     h=hopper_top - hopper_bearing;
     bearingOD=1.125*inch+0.2;
     bearingZ=8;
-    difference() {
-        // outer body
-        cylinder(d=hopper_bearing_stack_OD,h=h);
-        
+    
         // space for bearing
         translate([0,0,h-bearingZ])
             cylinder(d=bearingOD,h=bearingZ+1);
@@ -206,52 +205,137 @@ module auger_bearing_stack() {
         // thru shaft
         translate([0,0,-0.1])
         cylinder(d1=0.5*inch, d2=16,h=h);
+}
+
+// Cylinder underneath gear plate, spaces the auger thrust bearing
+module auger_bearing_stack() {
+    h=hopper_top - hopper_bearing;
+    difference() {
+        // outer body
+        cylinder(d=hopper_bearing_stack_OD,h=h);
+
+        auger_bearing_stack_internals();
     }
 }
 
+// One set of ribs that connect to this bolt hole
+module auger_bearing_rib_solid(boltloc,enlarge=0.0) {
+    hull() {
+        circle(d=hopper_bearing_stack_OD + 2*enlarge);
+        translate(boltloc) circle(d=10 + 2*enlarge);
+    }
+}
+module auger_bearing_rib(boltloc) {
+    rib_thick=3.5;
+    round=5.0;
+    difference() {
+        auger_bearing_rib_solid(boltloc,0.0);
+        offset(r=+round) offset(r=-round)
+        auger_bearing_rib_solid(boltloc,-rib_thick);
+    }
+}
+
+// Ribs that connect the auger bearing up to the geartrain frame plate
+module auger_bearing_ribs() {
+    rib_inset=1.0; // clearance between ribs and hopper walls
+    
+    for (side=[-1,+1])
+    for (bolti=[0,1]) 
+    {
+        difference() {
+            boltloc = hopper_plate_bolts[bolti];
+            
+            scale([side,1,-1])
+            intersection() {
+                // main body of rib is 2D extrusion
+                linear_extrude(height=hopper_top - hopper_bearing, convexity=4)
+                intersection() {
+                    auger_bearing_rib(boltloc);
+                    offset(r=-rib_inset) hopper_top_plate_2D();
+                }
+                
+                hull() { // tapered top slope of each rib
+                    cylinder(d=hopper_bearing_stack_OD, h=hopper_top - hopper_bearing);
+                    translate(boltloc) cylinder(d=10, h=1);
+                }
+            
+            }
+        }
+    }
+}
+
+geartrain_cover_clearR = 2.0; // side clearance for gear teeth
+geartrain_cover_clearZ = 6.0; // top clearance for gear clip, drive lug, etc
+geartrain_cover_bigR = geartrain_cover_clearR + outer_radius(teeth=gear_teeth_auger, mod=gear_module);
+geartrain_cover_wall = 1.7;
+
 // Covers up front of main drive gear, to keep concrete out of the gear teeth
 module geartrain_cover() {
-    wall = 1.7;
+    wall = geartrain_cover_wall;
     floor = wall; // thickness of top and bottom plates
-    rib_thick=wall;
+    rib_thick=2.5;
     
-    clearR = 2.0; // clearance for gear teeth
-    lo = gearZ_floor - floor; // bottom of bottom floor
-    hi = gearZ_auger + gear_thickness + 2*clearR; // bottom of top floor
+    lo = gearZ_floor; // bottom of bottom floor
+    hi = gearZ_auger + gear_thickness + geartrain_cover_clearZ; // bottom of top floor
     
-    bigR = clearR + outer_radius(teeth=gear_teeth_auger, mod=gear_module);
+    bigR = geartrain_cover_bigR;
+    
+    ribX=hopper_coneR+6;
+    ribYrange=0.6666*bigR; // distance covered by ribs
     
     difference() {
         union() {
             // Outside:
             h=hi-lo + 2*floor;
-            translate([0,0,lo]) cylinder(r=bigR+wall,h=h);
+            translate([0,0,lo]) {
+                cylinder(r=geartrain_cover_bigR+wall,h=h);
+                
+                translate([0,0,floor/2])
+                linear_extrude(height=floor,center=true,convexity=4)
+                    intersection() {
+                        translate([0,-200,0]) square([400,400],center=true);
+                        //translate([0,-ribYrange*0.5,0])
+                        //    square([2*(hopper_plate_bolts[0][0]+5),ribYrange],center=true);
+                        hopper_mount_plate_2D();
+                    }
+            }
             
             // Reinforcing ribs
             for (ribYI=[0,0.4,1]) 
             intersection() {
-                ribY = ribYI * (-0.6666*bigR);
+                ribY = ribYI * (-ribYrange)-0.5*rib_thick;
                 // taper down from cylinder to base plate
                 hull() {
                     front_extra = (ribYI==1)?12:0; // lip in front, to stop spilling material during loading
                     translate([0,0,lo]) cylinder(r=bigR+wall,h=h+front_extra);
-                    translate([-hopper_coneR,ribY,0])
-                        cube([2*hopper_coneR,rib_thick,gearZ_floor]);
+                    translate([-ribX,ribY,lo])
+                        cube([2*ribX,rib_thick,gearZ_floor]);
                 }
                 // slab along rib slice
-                translate([-hopper_coneR,ribY,0])
-                    cube([2*hopper_coneR,rib_thick,100]);
+                translate([-ribX,ribY,lo])
+                    cube([2*ribX,rib_thick,100]);
 
             }
         }
         
-        // Inside:
-        translate([0,0,lo+floor])
-            cylinder(r=bigR,h=hi-lo);
+        // Inside with space for gear
+        translate([0,0,gearZ_floor-0.01])
+        difference() {
+            cylinder(r=bigR,h=hi-lo+floor);
+            
+            // support material under bottom rib
+            supportX=bigR*0.6;
+            supportThick=1.0;
+            translate([0,-ribYrange,hi/2]) {
+                cube([2*supportX,supportThick,hi],center=true);
+                cube([supportThick,10,hi],center=true);
+
+            }
+        }
         
         // Space for auger drive clip, and gear insertion
-        hull() for (d=[[0,0], [50,100],[-50,0]]) translate(d)
-            cylinder(d=60,h=100,center=true);
+        hull() for (d=[[0,0], [50,50],[-50,50]]) translate(d)
+            cylinder(d=1.9*ribYrange,h=100,center=true);
         
     }
 }
@@ -259,43 +343,94 @@ module geartrain_cover() {
 // Stepper motor bolts onto this
 module geartrain_stepper_mount() 
 {
-    translate(stepper_center) rotate(stepper_rotate) {
-
-        // Plate with actual mounting bolt holes
-        linear_extrude(height=3,convexity=6) 
+    floor=2.5;
+    Ystart = 24;
+    intersection() {
+        // trim off entire part to Y>=Ystart and Z>=gearZ_floor
         difference() {
-            square([stepper_frameXY,stepper_frameXY],center=true);
-            circle(d=stepper_holeOD);
-            for_stepper_bolt_centers_local() circle(d=M3_thru);
+            translate([0,Ystart+500,gearZ_floor+500]) cube([135,1000,1000],center=true);
+            // stay away from central gear
+            cyl(r=geartrain_cover_bigR,h=2*(gearZ_auger + gear_thickness + geartrain_cover_clearZ), chamfer=4, anchor=CENTER);
         }
         
-        // Extra block to hold stepper down
-        block=3;
-        round=5;
-        translate([-stepper_frameXY/2-block,-stepper_frameXY/2-block,0])
-        difference()
-        { // origin is at back corner of stepper mount now
-            long = 80+stepper_frameXY+block;
-            z = stepper_center[2];
-            linear_extrude(height=z,convexity=4)
-            offset(r=-round) offset(r=+round)
-            {
-                // Hardmount long wall
-                square([long,block]);
-             
-                // Short back wall to allow drive gear to be inserted
-                square([block,12+block]);
-                
-                // Short front wall to clear drive gear
-                translate([block+stepper_frameXY,0]) square([block,5+block]);
-            }
+        union() {
+            // Base plate that gets bolted down
+            translate([0,0,gearZ_floor])
+                linear_extrude(height=floor,convexity=2) 
+                    difference() {
+                        
+                        hopper_mount_plate_2D();
+                        
+                        // space to insert stepper bolts
+                        translate(stepper_center) rotate(stepper_rotate)
+                            square([stepper_frameXY,stepper_frameXY],center=true);
+                    }
             
-            // hole for stepper wiring zip tie
-            translate([long*0.91,0,z*0.4]) rotate([90,0,0]) cylinder(d=10,h=20,center=true);
+            // walls around stepper itself
+            translate(stepper_center) rotate(stepper_rotate) {
+
+                // Stepper base plate with actual mounting bolt holes
+                linear_extrude(height=floor,convexity=6) 
+                difference() {
+                    square([stepper_frameXY,stepper_frameXY],center=true);
+                    circle(d=stepper_holeOD);
+                    for_stepper_bolt_centers_local() circle(d=M3_thru);
+                }
+                
+                // Extra block to hold stepper down
+                block=2.5;
+                round=4;
+                translate([-stepper_frameXY/2-block,-stepper_frameXY/2-block,0])
+                difference()
+                { // origin is at back corner of stepper mount now
+                    long = 50+stepper_frameXY+block;
+                    z = stepper_center[2];
+                    union() {
+                        linear_extrude(height=z,convexity=4)
+                        {
+                            offset(r=-round) offset(r=+round)
+                            {
+                                // Hardmount long wall diagonals
+                                square([long,block]);
+                                square([block,long]);
+                                
+                                // Stepper surrounded by frame
+                                translate([block+stepper_frameXY/2,block+stepper_frameXY/2])
+                                difference() {
+                                    square([2*block + stepper_frameXY,2*block + stepper_frameXY],center=true);
+                                    square([stepper_frameXY,stepper_frameXY],center=true);
+                                }
+                            
+                                // Bottom plate (for printability and diagonal stiffness)
+                                translate([long,0]) rotate([0,0,90+45]) square([long*1.41,block]);
+                            }
+                        }
+                        
+                        // Heavy bevels along long walls
+                        start=26; // non-bevel distance to avoid too much overhang
+                        bevel=8;
+                        translate([0,0,stepper_center[2]-bevel])
+                        for (angle=[0,90]) rotate([0,0,angle])
+                            rotate([45,0,0]) translate([start,0,0]) 
+                                cube([long-start,bevel,bevel]);
+                    }
+                    
+                    // hole for stepper wiring zip tie
+                    translate([long*0.75,0,z*0.3]) rotate([90,0,0]) cylinder(d=10,h=20,center=true);
+                }
+            }
         }
     }
 }
 
+// Bolt bosses above geartrain frame
+module geartrain_frame_bolt_bosses() 
+{
+    for_hopper_plate_bolts() {
+        translate([0,0,gearZ_floor-0.1])
+            cylinder(d1=20,d2=10,h=3); // bolt bosses above plate
+    }
+}
 
 // Frame holds all the gear parts together.  Bolts down onto hopper.
 module geartrain_frame() 
@@ -304,23 +439,28 @@ module geartrain_frame()
         union() {
             linear_extrude(height=gearZ_floor,convexity=4)
             difference() {
-                hopper_mount_plate_2D();
-                
+                union() {
+                    hopper_mount_plate_2D();
+                    
+                    // material under front gear
+                    difference() {
+                        circle(r=geartrain_cover_bigR + geartrain_cover_wall);
+                        circle(d=auger_shaft_OD);
+                    }
+                }
                 round=5; // rounding applied to stepper access cut (for strength)
                 translate(stepper_center) rotate(stepper_rotate) 
                     offset(r=+round) offset(r=-round)
-                    difference() {
-                        square([stepper_frameXY,stepper_frameXY],center=true);
-                        
-                        // Put back one corner, to run a spacer after gear is in
-                        rotate([0,0,60]) translate([0,12+50,0]) square([100,100],center=true);
-                    }
+                    square([stepper_frameXY,stepper_frameXY],center=true);
             }
             
-            geartrain_cover();
             
-            geartrain_stepper_mount();
+            translate([0,0,0.01]) rotate([180,0,0]) auger_bearing_stack(); // integrate the bearing stack into this part, for additional bending moment
+            
+            auger_bearing_ribs();
         }
+        
+        translate([0,0,0.01]) rotate([180,0,0]) auger_bearing_stack_internals();
     }
     
 }
@@ -330,12 +470,15 @@ module geartrain_frame()
 module geartrain_assembled() 
 {
     geartrain_frame();
-
+    //rotate([180,0,0]) auger_bearing_stack(); // integrated into frame now
+    
+    color([0.7,0.7,0.7]) geartrain_cover();
+    
+    color([1,0.5,0.5]) 
+            geartrain_stepper_mount();
+    
     translate([0,0,gearZ_auger]) gear_auger();
     
-    rotate([180,0,0]) auger_bearing_stack();
-    
-    //circle(d=25.4);
     color([1,0,1]) {
         translate([stepper_center[0], stepper_center[1], gearZ_auger]) 
             gear_stepper();
@@ -358,17 +501,17 @@ module geartrain_printable() {
 
 
 module geartrain_frame_printable() {
-    difference() {
-        translate([0,0,stepper_frameXY/2+3])
-        rotate([-90,0,0]) // stand upright for printing
-        rotate([0,0,-stepper_rotate[2]])
-            translate(-stepper_center)
-                geartrain_frame();
-        
-        // Trim bottom flat for printing (loses one mounting hole, still have 3 which is plenty)
-        translate([0,0,-200]) cube([400,400,400],center=true);
-    }
+    rotate([180,0,0]) // auger needs to be upright for printing
+        translate([0,0,-gearZ_floor]) 
+            geartrain_frame();
 }
+module geartrain_stepper_printable() {
+    rotate([90,0,0]) geartrain_stepper_mount();
+}
+module geartrain_cover_printable() {
+    translate([0,0,-gearZ_floor]) geartrain_cover();
+}
+
 
 /* ---------------- Hopper-top Mount Plate ----------
  Mounts the auger gear and stepper motor to the top of the hopper.
@@ -393,11 +536,17 @@ module hopper_mount_plate_2D()
         union() {
             hull() {
                 for_hopper_plate_bolts() circle(d=10);
+                
+                translate(stepper_center) rotate(stepper_rotate) 
+                    offset(r=3)
+                    square([stepper_frameXY,stepper_frameXY],center=true);
+                
                 for_stepper_bolt_centers() circle(d=16);
                 offset(r=hopper_top_rim) intersection() {
                     hopper_top_plate_2D();
                     square([200,85],center=true);
                 }
+                children();
             }
         }
         
@@ -981,10 +1130,10 @@ module pipewall_sections()
   Extrudes material out the central exit hole.
   Threads onto end of auger barrel.
 */
-nozzle_diameter=10; // 15; // diameter of exit hole of nozzle
+nozzle_diameter=20; // 20; // diameter of exit hole of nozzle
 nozzle_wall=2.0; // thickness of plastic around nozzle
 nozzle_flats=8; // number of flat sides
-nozzle_OD=nozzle_pipe_OD; // diameter of outside of nozzle (across flats)
+nozzle_OD=nozzle_pipe_OD+3; // diameter of outside of nozzle (across flats)
 
 nozzle_Z=25; // height of nozzle, not including threads
 nozzle_thread_Z=15; // height of nozzle threaded portion
@@ -993,17 +1142,16 @@ nozzle_exit_Z=4; // straight area at nozzle exit
 // Threaded area so nozzle can thread onto pipe.  Facing up, ends at origin.
 module nozzle_inside_threads(bevelbottom=true)
 {
-    translate([0,0,-2.3-pipe_thread_Z])
-    npt_threaded_rod(size=nozzle_pipe_size, $slop=clearance, bevel2=bevelbottom, internal=true, orient=BOTTOM, anchor=TOP);
+    translate([0,0,-2-pipe_thread_Z])
+    npt_threaded_rod(size=nozzle_pipe_size, $slop=2*clearance, bevel2=bevelbottom, internal=true, orient=BOTTOM, anchor=TOP);
 }
 
 // Clear area so material can flow through pipe
 module nozzle_inside_flow()
 {
-    d=nozzle_pipe_ID;
-    taper=2;
-    translate([0,0,-taper])
-        cylinder(d1=d, d2=d-taper,h=taper);
+    d=nozzle_pipe_OD-1.0; //<- it's OD to prevent stress riser at end of thread cut (otherwise ID would be fine)
+    translate([0,0,-1.5])
+        cylinder(d=d,h=1);
 }
 
 
@@ -1031,6 +1179,16 @@ module nozzle_flow(enlarge=0) {
         nozzle_inside_flow();
         nozzle_exit(enlarge*0.5);
     }
+    /*
+    // rounded end of threaded area
+    OD = nozzle_pipe_OD-1;
+    round=5;
+    rotate_extrude() 
+        translate([OD/2-round,-1.5]) intersection() {
+            circle(r=round);
+            translate([0,10]) square([20,20],center=true);
+        }
+   */
 }
 
 // Outdented text giving nozzle diameter
@@ -1038,7 +1196,7 @@ module nozzle_text() {
     for (angle=[0:90:360-1]) rotate([0,0,angle])
         translate([nozzle_OD/2+nozzle_wall,0,-nozzle_thread_Z/2])
             rotate([0,90,0]) rotate([0,0,-90])
-                linear_extrude(height=2,center=true,convexity=6)
+                linear_extrude(height=2.5,center=true,convexity=6)
                     text(str(nozzle_diameter),halign="center",valign="center",size=8);
 }
 
@@ -1064,7 +1222,8 @@ module nozzle(wall=nozzle_wall) {
         translate([0,0,-nozzle_thread_Z-50]) cube([100,100,100],center=true); 
         
         if (0) // cutaway section
-            rotate([0,0,360/8/2]) translate([0,0,-50]) cube([100,100,100]); 
+            //rotate([0,0,360/8/2]) 
+            translate([0,0,-50]) cube([100,100,100]); 
     }
 }
 
@@ -1086,7 +1245,8 @@ module extruder_demo() {
 }
 
 
-//extruder_demo(); // Entire assembly
+extruder_demo(); // Entire assembly
+
 //#difference() { hopper_exterior(); translate([200,200,0]) cube([400,400,800],center=true); } // cutaway
 //inducer();
 //inducer_blade();
@@ -1103,7 +1263,10 @@ module extruder_demo() {
 //auger_weld_support();
 //pipewall_sections();
 //geartrain_printable();
-geartrain_frame_printable();
+//   rotate([180,0,0]) gear_stepper();
+//geartrain_frame_printable();
+//geartrain_cover_printable();
+//geartrain_stepper_printable();
 //nozzle();
 
 
