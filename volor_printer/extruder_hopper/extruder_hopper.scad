@@ -2,24 +2,20 @@
 3D printed hopper for a concrete / mortar / clay extruder
 
 
-Updated version:
+2024-08-07 version:
 
-Uses half (9 inches) of a welded 2 inch diameter steel earth auger to push concrete down:
+Uses a section of welded 2 inch diameter steel earth auger to push concrete down:
     https://www.amazon.com/gp/product/B09MFB84WR/
 
 This is welded onto a 1/2" steel bolt.  The bolt's hex head drives the inducer stir bar.  The top of the bolt drilled so a pull pin can clip it to the top of the drive gear.
 
 The lower half of the auger is surrounded by a 2 inch schedule 40 PVC pipe.  Nominal size, actual OD is 60.4mm.
 
-The nozzle threads onto 1 inch pipe threads, which are adapted down from the 2" PVC as follows:
-    - 2" PVC coupler
-    - 2" male slip x 1.25" female slip PVC reducing bushing
-    - 1.0" male slip x 1.0" male pipe thread PVC adapter
-Notice the last jump from 1.25" to 1.0" isn't officially supported, but shrinks the overall nozzle length.
+The nozzle threads onto a 2 inch PVC slip x thread adapter, so the nozzle threads into 2 inch FPT.
 
 PVC cement does seem to successfully join PVC plastic pipe and PETG prints (Weld-On 700 tested with Overture black PETG).
 
-Design by Dr. Orion Lawlor, lawlor@alaska.edu, 2024-07 (Public Domain)
+Design by Dr. Orion Lawlor, lawlor@alaska.edu, 2024-08 (Public Domain)
 */
 include <BOSL2/std.scad> /* https://github.com/BelfrySCAD/BOSL2/ */
 include <BOSL2/gears.scad> /* for drive gears */
@@ -33,9 +29,9 @@ inch=25.4; // file units are mm
 clearance=0.2; //<- space around printed parts so they can be assembled
 
 // Pipe size at nozzle
-nozzle_pipe_size = 1; // inch nominal pipe thread for nozzle
-nozzle_pipe_OD = 1.32 * inch+0.5;
-nozzle_pipe_ID = 1*inch + 2;
+nozzle_pipe_size = 2; // inch nominal pipe thread for nozzle
+nozzle_pipe_OD = 2.32 * inch+0.5;
+nozzle_pipe_ID = 2*inch + 2;
 
 // Pipe size around auger
 pipe_OD = 60.6+2*clearance; // outside diameter of pipe, with a little clearance
@@ -49,7 +45,7 @@ pipe_thread_Z=24; // height of end of threaded zone
 auger_thread_pitch=40; // mm between full turns
 auger_thread_centerID=9; // central screw (plus some clearance)
 auger_thread_edgeOD=25; // edge cross section thickness (plus some clearance)
-auger_thread_OD=46; // outside diameter of auger (plus a bit of clearance)
+auger_thread_OD=51; // outside diameter of auger (plus a bit of clearance)
 
 auger_hex_flats=0; // 11.1; // across the flats of hex shaft on auger (0 if round)
 //auger_hex_len=30; // length of auger's hex flats
@@ -59,15 +55,25 @@ auger_pin_len = 50; // space around auger pin
 
 
 // Stepper mount dimensions
-
 // NEMA 17
-stepper_boltOD=3.5; // bolt hole size
+stepper_NEMA=17; // identifier
+stepper_boltOD=3.5; // bolt hole size, M3 taps up into stepper
 stepper_boltXY=31.0/2; // distance in XY between holes
 stepper_frameXY=42.5; // overall outside size of box
 stepper_holeOD=22.5; // central hole
 stepper_shaftOD=5.1; // shaft where drive gear sits
 stepper_height = 55; // Z height of stepper hole
 
+
+/*
+// NEMA 23: stepper mass is 1.5kg
+stepper_NEMA=23; // identifier for stepper size
+stepper_boltOD=4.3; // bolt hole size, M5 taps down into plastic
+stepper_boltXY=47.2/2; // distance in XY between holes
+stepper_frameXY=57.2; // overall outside size of box
+stepper_holeOD=38.4; // central hole, plus some clearance
+stepper_shaftOD=10.1; // shaft where drive gear sits
+*/
 
 
 // Tap plastic for M3 screw at this diameter
@@ -240,7 +246,7 @@ module auger_bearing_ribs() {
     rib_inset=1.0; // clearance between ribs and hopper walls
     
     for (side=[-1,+1])
-    for (bolti=[0,1]) 
+    for (bolti=[0:2]) 
     {
         difference() {
             boltloc = hopper_plate_bolts[bolti];
@@ -280,7 +286,7 @@ module geartrain_cover() {
     
     bigR = geartrain_cover_bigR;
     
-    ribX=hopper_coneR+6;
+    ribX=hopper_feedR+6;
     ribYrange=0.6666*bigR; // distance covered by ribs
     
     difference() {
@@ -344,13 +350,14 @@ module geartrain_cover() {
 module geartrain_stepper_mount() 
 {
     floor=2.5;
-    Ystart = 24;
+    Ystart = 20; // Y coordinate to trim this part
     intersection() {
         // trim off entire part to Y>=Ystart and Z>=gearZ_floor
         difference() {
-            translate([0,Ystart+500,gearZ_floor+500]) cube([135,1000,1000],center=true);
+            translate([0,Ystart+500,gearZ_floor+500]) cube([175,1000,1000],center=true);
             // stay away from central gear
             cyl(r=geartrain_cover_bigR,h=2*(gearZ_auger + gear_thickness + geartrain_cover_clearZ), chamfer=4, anchor=CENTER);
+            cyl(d=auger_pin_len+10,h=2*(gearZ_auger + gear_thickness + 10), chamfer=4, anchor=CENTER);
         }
         
         union() {
@@ -383,7 +390,7 @@ module geartrain_stepper_mount()
                 translate([-stepper_frameXY/2-block,-stepper_frameXY/2-block,0])
                 difference()
                 { // origin is at back corner of stepper mount now
-                    long = 50+stepper_frameXY+block;
+                    long = 54+stepper_frameXY+block; // tune to match Ystart
                     z = stepper_center[2];
                     union() {
                         linear_extrude(height=z,convexity=4)
@@ -583,11 +590,14 @@ hopper_top = 0; // level with geartrain plate
 // drive bearing here
 hopper_bearing = -25; // Z height of bottom of hopper support bearing
 // inducer mounts here
-hopper_cylinder= -30; // Z height of top of cylindrical region
+hopper_cylinder= -40; // Z height of top of cylindrical region
 // main storage cylinder here
-hopper_cone= -110; // Z height of cone closing taper
+hopper_coneZ= -130; // Z height of cone closing taper
+
+hopper_pipetopZ= -170; // Z height of top of PVC glue-in
+
 // rounded cone tapering down to pipe here
-hopper_bottom = -180; // top of extrusion auger barrel at bottom of hopper, start of mount plate
+hopper_bottom = -170; // top of extrusion auger barrel at bottom of hopper, start of mount plate
 // top of PVC pipe, with taper coupler
 hopper_taper_coupler = hopper_bottom-25; // taper coupler ends here
 // just PVC pipe here
@@ -596,9 +606,10 @@ hopper_nozzle_coupler = hopper_taper_coupler-25;  // start of coupler going down
 hopper_nozzle_Z=hopper_nozzle_coupler-125; // exit area where nozzle threads on
 
 
-
-hopper_coneR=75; // radius of central core of hopper
-hopper_augerXY=[2*hopper_coneR,100]; // top plate around auger
+hopper_feedZ= -150; // Z height of feed input 
+hopper_feedR=75; // radius of feed box
+hopper_coneR=50; // radius of central core of hopper (can glue in PVC pipe coupler with bevel)
+hopper_augerXY=[2*hopper_feedR,100]; // top plate around auger
 
 hopper_feed_center=[0,-60,0]; // center of feed area square (sticks out for manual feeding)
 
@@ -606,11 +617,12 @@ hopper_round=20; // corner rounding
 
 hopper_top_rim=5; // thickness of top rim
 
-hopper_exitOD=pipe_coupler_OD+2*3;
+// Thickness of wraparound tool mount
+hopper_exitOD=pipe_OD+2*3; // pipe_coupler_OD+2*3;
 
 
 // translation to tool mounting plate center
-toolplate_center=[0,38,hopper_bottom-40]; // center point of our mount
+toolplate_center=[0,38,hopper_bottom-50]; // center point of our mount
 toolplate_size=[45,12,80]; // plastic that bolts to the actual toolplate
 toolplate_back = toolplate_center + [0,toolplate_size[1]/2,0]; // back face
 
@@ -625,10 +637,12 @@ module toolplate_block()
 
 
 // positive X plate mounting bolt centers (negative X is mirror image)
-hopper_boltout=4;
+hopper_boltR=75; // outset distance for bolts
+hopper_boltout=4; // outset of mount bolts
 hopper_plate_bolts=[
-    [hopper_coneR+hopper_boltout,-25,0], // -hopper_augerXY[1]/2,0], // sides (bolted)
-    [hopper_coneR-hopper_round,+hopper_augerXY[1]/2+3+hopper_boltout,0] // back (on studs)
+    [hopper_boltR+hopper_boltout,-25,0], // -hopper_augerXY[1]/2,0], // front sides
+    [hopper_boltR+hopper_boltout,+25,0], // -hopper_augerXY[1]/2,0], // mid sides
+    [hopper_boltR-hopper_round,+hopper_augerXY[1]/2+3+hopper_boltout,0] // back 
 ];
 
 // Mirror children at this hopper plate bolt center p
@@ -654,7 +668,7 @@ module hopper_top_plate_2D()
     offset(r=+hopper_round) offset(r=-hopper_round)
     union() {
         // Feed chute with flat front (for scraping off trowel)
-        fe=2*hopper_coneR;
+        fe=2*hopper_feedR;
         translate(hopper_feed_center) 
             square([fe,fe],center=true);
         
@@ -669,8 +683,8 @@ module hopper_cylinder(enlarge=0,shift_bottom=0)
 {
     re=hopper_coneR + enlarge;
     // Central cylinder
-    translate([0,0,hopper_cone+shift_bottom]) {
-        h=hopper_cylinder - hopper_cone+enlarge;
+    translate([0,0,hopper_coneZ+shift_bottom]) {
+        h=hopper_cylinder - hopper_coneZ+enlarge;
         rounding = 1.0*hopper_round+0.5*enlarge;
         //cylinder(r=re,h=h);
         cyl(r=re,h=h - shift_bottom, rounding=rounding, anchor=DOWN);
@@ -682,12 +696,13 @@ module hopper_bulge_exit(enlarge=0, enlarge_exit=0)
 {
     hull() {
         // Exit point
-        pe=pipe_coupler_OD/2 + enlarge + enlarge_exit;
+        //pe=pipe_coupler_OD/2 + enlarge + enlarge_exit;
+        pe=pipe_ID/2 + enlarge + enlarge_exit;
         translate([0,0,hopper_bottom+0.01*enlarge]) cylinder(r=pe,h=0.1);
         
         // Cone taper to central bulge to hold material
         re=hopper_coneR + enlarge;
-        translate([0,0,hopper_cone]) scale([1,1,0.75]) sphere(r=re);
+        translate([0,0,hopper_coneZ]) scale([1,1,0.75]) sphere(r=re);
         
         hopper_cylinder(enlarge);
         
@@ -704,7 +719,12 @@ module hopper_shape(enlarge=0, enlarge_exit=0)
         union() {
             hopper_bulge_exit(enlarge, enlarge_exit) children();
             hull() {
-                hopper_cylinder(enlarge, 0);
+                //hopper_cylinder(enlarge, 0);
+                // This is where feed hits the auger
+                translate([0,0,hopper_feedZ]) 
+                    scale([0.65,0.8,1]) // squish X for sloped intersection
+                    rotate([45,0,0])
+                        cylinder(r=hopper_coneR+enlarge,h=1);
                 
                 // Top feed plate
                 translate([0,0,hopper_top])
@@ -712,7 +732,18 @@ module hopper_shape(enlarge=0, enlarge_exit=0)
                     offset(r=enlarge)
                         hopper_top_plate_2D();
             }
+        
+            // Slope the interface between feed and stir cylinder
+            for (step=[0:2])
+            translate([0,0,hopper_feedZ-pipe_OD*0.8])
+                translate([0,0,step*8])
+                rotate([8+8*step,0,0]) translate([0,0,+enlarge])
+                difference() {
+                    cylinder(d=pipe_OD+2*enlarge,h=pipe_OD-2*enlarge);
+                    translate([0,100+pipe_OD*0.08,0]) cube([200,200,200],center=true); // only front half
+                }
         }
+        
         // Carve space for stepper gear head to not interfere with hopper
         translate(stepper_center) rotate(stepper_rotate) {
             enlargelimit=2; // keep enlarged rim from hitting gear
@@ -732,17 +763,17 @@ module hopper_shape(enlarge=0, enlarge_exit=0)
 // 3D space for PVC pipe to be glued in
 module hopper_pipe_space()
 {
-    // taper coupler, machined with a taper on the feed side
-    translate([0,0,hopper_taper_coupler])
-        cylinder(d=pipe_coupler_OD,h=hopper_cone - hopper_taper_coupler);
+    // taper coupler, machined with a taper on the feed entrance
+    //translate([0,0,hopper_taper_coupler])
+    //    cylinder(d=pipe_coupler_OD,h=hopper_coneZ - hopper_taper_coupler);
     
     // through pipe in middle
     translate([0,0,hopper_nozzle_Z])
-        cylinder(d=pipe_OD,h=hopper_cone - hopper_nozzle_Z);
+        cylinder(d=pipe_OD,h=0.01+hopper_pipetopZ - hopper_nozzle_Z);
     
-    // nozzle coupler on bottom (cemented in afterwards)
-    translate([0,0,hopper_nozzle_Z])
-        cylinder(d=pipe_coupler_OD,h=hopper_nozzle_coupler - hopper_nozzle_Z);
+    // nozzle coupler on bottom (cemented on after assembly)
+    //translate([0,0,hopper_nozzle_Z])
+    //    cylinder(d=pipe_coupler_OD,h=hopper_nozzle_coupler - hopper_nozzle_Z);
     
 /*
         translate([0,0,hopper_bottom]) {
@@ -761,23 +792,32 @@ module hopper_ribs(wall)
     rib_top = 2; // light ribs support top of cylinder
     rib_bottom=6; // added rib thickness at bottom of feed cone
     rib_wide = 3; // thickness of ribs
-    rib_angle = 45; // tilt angle of ribs relative to vertical
+    rib_angle = 60; // tilt angle of ribs relative to vertical
+    rib_centerZ = hopper_bottom;
     for (phase=[0,1])
     intersection() {
         hopper_shape(wall+rib_top,phase?0:rib_bottom)
             // taper out ribs on bottom
             if (phase==0) translate([0,0,hopper_taper_coupler]) cylinder(d=hopper_exitOD,h=1);
         
-        // Ribs are thin cubes
-        translate([0,0,hopper_bottom])
-        for (angle=[0:60:180-1]) for (tilt=[-rib_angle,0,+rib_angle])
-            rotate([tilt,0,angle + 30*phase])
-                cube([500,rib_wide,500],center=true);
-    }
+        union() {
+            // Vertical and slanted ribs are thin cubes
+            translate([0,0,rib_centerZ])
+            for (angle=[0:60:180-1]) for (tilt=[-rib_angle,0,+rib_angle])
+                rotate([tilt,0,angle + 30*phase])
+                    cube([500,rib_wide,500],center=true);
+
+            // Horizontal ribs are thicker cubes
+            for (z=[hopper_coneZ,hopper_coneZ-10,hopper_cylinder])
+                translate([0,0,z]) 
+                    for (a=[0]) rotate([a,0,0])
+                    cube([500,500,rib_wide*2],center=true);
+        }
+   }
             
     // transition taper between ribs and pipe
     translate([0,0,hopper_bottom])
-        cylinder(d1=hopper_exitOD,d2=hopper_exitOD+12,h=25,center=true);
+        cylinder(d1=hopper_exitOD,d2=hopper_exitOD+12,h=30,center=true);
 }
 
 // 3D overall shape of hopper, including mounting bolts and ribs
@@ -803,7 +843,7 @@ module hopper_exterior()
                 }
                 
                 // Toolplate mount
-                mount_extra=[0,0,15];
+                mount_extra=[0,0,30]; // extra material above toolplate, to taper into cone
                 translate(toolplate_center+mount_extra) cube(toolplate_size+2*mount_extra,center=true);
             }
             
@@ -865,22 +905,34 @@ module hopper_printable() {
 */
 inducer_Z_end=hopper_bearing; // top of inducer, threads on
 inducer_Z_cylinder=hopper_bearing-25; // height where mounting cylinder starts, and auger hex head
-inducer_Z_endspiral=hopper_bottom + 5; // top of spiral area
+inducer_Z_endspiral=hopper_bottom; // top of spiral area
 inducer_Z_start=inducer_Z_endspiral; // bottom of inducer, tips
 
 inducer_wall=3.5; // thickness of body of inducer
 
-inducer_hopper_clearance=3; // distance between inducer and hopper (allow assembly, reduce grinding)
+inducer_hopper_clearance=4; // distance between inducer and hopper (allow assembly, reduce grinding chance)
 
 inducer_bladeW=10.3; // width + clearance for steel wiper blade of inducer (needs to be thick to resist torsion)
 inducer_bladeH=2.5; // thickness of slot for steel strip
 inducer_bladeR=hopper_coneR - inducer_hopper_clearance; // radius of main blade in XY plane
 inducer_blade_mount=3; // plastic around the blade itself
 
-inducer_mountD = hopper_bearing_stack_OD; // outside of mounting cylinder
+inducer_mountD = hopper_bearing_stack_OD+1; // outside of mounting cylinder
 
 
 inducer_Z_threadstop=-75; // Z height where auger helix threading stops
+
+// Dimensions of auger hole in inducer:
+auger_axle_OD=1/2*inch + 0.5; // across the shaft
+auger_hex_OD=3/4*inch + 0.5; // across the flats of the hex
+auger_hex_Z=11/32*inch; // height of hex head on auger bolt
+
+
+
+// The auger's welded-on top bolt needs a cross-drilled hole for retaining clip, at this distance from the top of the hex flats:
+bolt_Z_space = (gearZ_auger - inducer_Z_cylinder) - auger_hex_Z + gear_thickness + 3;
+echo("Auger bolt top to clip hole: ",bolt_Z_space);
+
 
 /*
   Model the helical thread of the auger for this many complete cycles.
@@ -911,7 +963,7 @@ module inducer_profile_3D(enlarge=0,shift_exit=0) {
         
         // Taper to auger on top
         translate([0,0,inducer_Z_end+top_taper*enlarge]) scale([1,1,-1]) 
-            cylinder(d=pipe_ID+2*inducer_wall+2*enlarge,h=1);
+            cylinder(d=hopper_bearing_stack_OD+2*inducer_wall+2*enlarge,h=1);
     }
 }
 
@@ -920,11 +972,12 @@ module inducer_blade_top2D(enlarge = 0)
 {
     square([(inducer_bladeW+2*enlarge),2*inducer_bladeR],center=true); // main arms
 }
-module inducer_blade_top3D() 
+module inducer_blade_top3D(enlarge=0,raisebottom=0) 
 {
-    bottom = inducer_Z_start;
-    translate([0,0,inducer_Z_start])
-        linear_extrude(height=inducer_Z_end - inducer_Z_start,convexity=4) {
+    bottom = inducer_Z_start + raisebottom;
+    translate([0,0,bottom])
+        linear_extrude(height=inducer_Z_end - bottom,convexity=4) 
+        offset(r=enlarge) {
             inducer_blade_top2D();
         }
 }
@@ -972,8 +1025,14 @@ module inducer_body()
     
 }
 
-inducer_mountscrew_center=[auger_thread_OD*0.5+inducer_bladeW,0,inducer_Z_end-20];
-inducer_mountscrew_rotate=[0,-90,0];
+// Move to centers of each inducer blade mounting screw
+module inducer_screw_centers() {
+    for (side=[-1,+1]) scale([1,side,1])
+        for (y=[0.1, 0.3])
+            translate([0,(0.4+y)*hopper_coneR,inducer_Z_end-y*hopper_coneR])
+                rotate([180-45,0,0])
+                    children();
+}
 
 // Full inducer shape
 module inducer() {
@@ -983,23 +1042,18 @@ module inducer() {
         }
         
         // Screws to hold and align the blade strip steel
-        for (side=[-1,+1]) scale([1,side,1])
-            for (y=[0, 0.3])
-                translate([0,(0.5+y)*hopper_coneR,inducer_Z_end-0.3*y*hopper_coneR])
-                    rotate([180-20,0,0])
-                    {
-                        cylinder(d=M3_tapID,h=50);
-                        translate([0,0,10])
-                            cylinder(d=M3_insertOD,d2=M3_insertOD*2,h=25);
-                    }
+        inducer_screw_centers()
+        {
+            cylinder(d=M3_tapID,h=50);
+            translate([0,0,10])
+                cylinder(d=M3_insertOD,d2=M3_insertOD*2,h=25);
+        }
                     
-        auger_axle_OD=1/2*inch + 0.5; // across the shaft
-        auger_hex_OD=3/4*inch + 0.5; // across the flats of the hex
         
         // Space for auger mounting bolt (1/2" bolt welded to top of auger)
         cylinder(d=auger_axle_OD,h=200,center=true);
         translate([0,0,inducer_Z_cylinder-0.1])
-            cylinder(d=auger_hex_OD/cos(30),$fn=6,h=11/32*inch);
+            cylinder(d=auger_hex_OD/cos(30),$fn=6,h=auger_hex_Z);
         
         // Cut clearance gap around everything but the inner race of the bearing
         gap=2;
@@ -1023,24 +1077,28 @@ module inducer_printable() {
 module inducer_blade() {
     color([0.4,0.4,0.5])
     difference() {
-        union() {
-            translate([0,0,inducer_Z_start]) cylinder(d=inducer_mountD,h=inducer_bladeH);
-            intersection() {
-                inducer_blade_top3D();
-                difference() {
-                    inducer_profile_3D(-0.01); // interior of hopper
-                    inducer_profile_3D(-inducer_bladeH); // interior of hopper
-                    translate([0,0,inducer_Z_end]) cylinder(d=inducer_mountD,h=25,center=true);
-                }
-            }
+        intersection() {
+            inducer_profile_3D(-0.01); // interior of hopper
+            inducer_blade_top3D();
         }
+        intersection() {
+            inducer_profile_3D(-inducer_bladeH); // interior of blade
+            inducer_blade_top3D(1,inducer_bladeH);
+        }
+
+        // Eliminate the top surface
+        translate([0,0,inducer_Z_end]) cylinder(d=inducer_mountD+2,h=25,center=true);
+        
         inducer_thread_space();
     }
 }
 
 // 2D (printable) cross section of blade
 module inducer_blade_section() {
-    projection(cut=true) rotate([0,90,0]) inducer_blade();
+    projection(cut=true) rotate([0,90,0]) {
+        inducer_blade();
+        inducer_screw_centers() cylinder(d=1,h=10);
+    }
 }
 
 /* ------------------ Pipe Wall Texture ----------------
@@ -1130,27 +1188,28 @@ module pipewall_sections()
   Extrudes material out the central exit hole.
   Threads onto end of auger barrel.
 */
-nozzle_diameter=20; // 20; // diameter of exit hole of nozzle
+nozzle_diameter=15; // 20; // diameter of exit hole of nozzle
 nozzle_wall=2.0; // thickness of plastic around nozzle
 nozzle_flats=8; // number of flat sides
+nozzle_flatZ=8; // Z thickness of flats
 nozzle_OD=nozzle_pipe_OD+3; // diameter of outside of nozzle (across flats)
 
-nozzle_Z=25; // height of nozzle, not including threads
+nozzle_Z=20; // height of nozzle, not including threads
 nozzle_thread_Z=15; // height of nozzle threaded portion
-nozzle_exit_Z=4; // straight area at nozzle exit
+nozzle_exit_Z=3; // straight area at nozzle exit
 
-// Threaded area so nozzle can thread onto pipe.  Facing up, ends at origin.
+// Threaded area so nozzle can thread into pipe.  Facing up, ends at origin.
 module nozzle_inside_threads(bevelbottom=true)
 {
-    translate([0,0,-2-pipe_thread_Z])
-    npt_threaded_rod(size=nozzle_pipe_size, $slop=2*clearance, bevel2=bevelbottom, internal=true, orient=BOTTOM, anchor=TOP);
+    translate([0,0,4.2-pipe_thread_Z])
+    npt_threaded_rod(size=nozzle_pipe_size, $slop=2*clearance, bevel2=bevelbottom, internal=false, orient=BOTTOM, anchor=TOP);
 }
 
 // Clear area so material can flow through pipe
 module nozzle_inside_flow()
 {
-    d=nozzle_pipe_OD-1.0; //<- it's OD to prevent stress riser at end of thread cut (otherwise ID would be fine)
-    translate([0,0,-1.5])
+    d=nozzle_pipe_ID+1.0; 
+    translate([0,0,-2.5-pipe_thread_Z])
         cylinder(d=d,h=1);
 }
 
@@ -1158,10 +1217,10 @@ module nozzle_inside_flow()
 // Outside of nozzle around threads
 module nozzle_outside_threads(enlarge=0) {
     halfangle = 360/nozzle_flats/2;
-    translate([0,0,-pipe_thread_Z])
+    //translate([0,0,-pipe_thread_Z])
     rotate([0,0,halfangle])
     cylinder(d=(nozzle_OD + 2*enlarge)/cos(halfangle),
-        h=pipe_thread_Z,
+        h=nozzle_flatZ,
         $fn=nozzle_flats // beveled for grip / tool tightening
         );
 }
@@ -1179,44 +1238,36 @@ module nozzle_flow(enlarge=0) {
         nozzle_inside_flow();
         nozzle_exit(enlarge*0.5);
     }
-    /*
-    // rounded end of threaded area
-    OD = nozzle_pipe_OD-1;
-    round=5;
-    rotate_extrude() 
-        translate([OD/2-round,-1.5]) intersection() {
-            circle(r=round);
-            translate([0,10]) square([20,20],center=true);
-        }
-   */
 }
 
 // Outdented text giving nozzle diameter
 module nozzle_text() {
     for (angle=[0:90:360-1]) rotate([0,0,angle])
-        translate([nozzle_OD/2+nozzle_wall,0,-nozzle_thread_Z/2])
+        translate([nozzle_OD/2+nozzle_wall,0,nozzle_flatZ/2])
             rotate([0,90,0]) rotate([0,0,-90])
                 linear_extrude(height=2.5,center=true,convexity=6)
-                    text(str(nozzle_diameter),halign="center",valign="center",size=8);
+                    text(str(nozzle_diameter),halign="center",valign="center",size=nozzle_flatZ-1);
 }
 
-// Overall finished nozzle
+// Overall finished nozzle, with male threads
 module nozzle(wall=nozzle_wall) {
     difference() {
         union() {
             hull() {
                 nozzle_outside_threads(wall);
-                nozzle_flow(wall);
+                nozzle_exit(wall*0.5);
             }
             cylinder(d=nozzle_diameter+2*wall,h=nozzle_Z); // final exit surface
             nozzle_text();
+            
+            
+            nozzle_inside_threads(); // threadable area
         }
         
         cylinder(d=nozzle_diameter,h=nozzle_Z+1); // thru hole and exit
         
         nozzle_flow(0.0); // inside of flow area
         
-        nozzle_inside_threads(); // threadable area
         
         // Trim off bottom so it doesn't need to be threaded as long
         translate([0,0,-nozzle_thread_Z-50]) cube([100,100,100],center=true); 
@@ -1226,7 +1277,6 @@ module nozzle(wall=nozzle_wall) {
             translate([0,0,-50]) cube([100,100,100]); 
     }
 }
-
 
 
 // Demo all parts as assembled together and working
@@ -1244,24 +1294,28 @@ module extruder_demo() {
     #toolplate_block();
 }
 
+// Demo cutaway
+module demo_cutaway() {
+    difference() { 
+        union() { 
+            hopper_exterior(); 
+            inducer(); 
+        } 
+        rotate([0,0,10]) 
+        translate([200,200,0]) cube([400,400,800],center=true); // cutaway
+    }
+    inducer_blade();
+}
 
 extruder_demo(); // Entire assembly
-
-//#difference() { hopper_exterior(); translate([200,200,0]) cube([400,400,800],center=true); } // cutaway
-//inducer();
-//inducer_blade();
+//demo_cutaway();
 //geartrain_assembled();
 //hopper_shape(); // interior, for volume estimation
 
 
 // 3D printable parts:
 //hopper_printable();
-//hopper_mount_plate_2D();
 //inducer_printable();
-//inducer_blade_section();
-//auger_bearing_stack();
-//auger_weld_support();
-//pipewall_sections();
 //geartrain_printable();
 //   rotate([180,0,0]) gear_stepper();
 //geartrain_frame_printable();
@@ -1270,9 +1324,11 @@ extruder_demo(); // Entire assembly
 //nozzle();
 
 
+//pipewall_sections(); // keeps material from spinning inside pipe (optional)
 
-
-
+// Fabrication tools
+//inducer_blade_section(); // 2D outline of blade, for bending stainless
+//auger_weld_support();  // centers a 1/2" bolt to line up with auger
 
 
 
