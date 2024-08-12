@@ -2,7 +2,7 @@
 3D printed hopper for a concrete / mortar / clay extruder
 
 
-2024-08-07 version:
+2024-08-09 version:
 
 Uses a section of welded 2 inch diameter steel earth auger to push concrete down:
     https://www.amazon.com/gp/product/B09MFB84WR/
@@ -15,6 +15,12 @@ The nozzle threads onto a 2 inch PVC slip x thread adapter, so the nozzle thread
 
 PVC cement does seem to successfully join PVC plastic pipe and PETG prints (Weld-On 700 tested with Overture black PETG).
 
+A NEMA17 stepper at 24VDC doesn't quite have enough torque to break sand particles at 10:1 gear reduction.  Constraints:
+    - There's up to 20mm of vertical space for a gear on the output shaft
+    - Could pin the gear onto the shaft with a 3mm dia, 32mm long pin (slides in and clips on?)
+    - Intermediate stage needs a shaft: 10mm bushings on 8mm (5/16") shaft?
+
+
 Design by Dr. Orion Lawlor, lawlor@alaska.edu, 2024-08 (Public Domain)
 */
 include <BOSL2/std.scad> /* https://github.com/BelfrySCAD/BOSL2/ */
@@ -24,6 +30,11 @@ include <BOSL2/threading.scad> /* for pipe thread on auger barrel */
 $fs=0.1; $fa=5;
 
 inch=25.4; // file units are mm
+
+
+// Replace [x,y,z] with [x,y,newz]
+function replaceZ(p,newz) = [p[0], p[1], newz];
+
 
 // Auger barrel parameters
 clearance=0.2; //<- space around printed parts so they can be assembled
@@ -49,9 +60,11 @@ auger_thread_OD=51; // outside diameter of auger (plus a bit of clearance)
 
 auger_hex_flats=0; // 11.1; // across the flats of hex shaft on auger (0 if round)
 //auger_hex_len=30; // length of auger's hex flats
-auger_shaft_OD = 1/2*inch + 0.2; // diameter of auger shaft
-auger_pin_OD = 3; // diameter of hole for retaining pin
-auger_pin_len = 50; // space around auger pin
+auger_shaft_OD = 1/2*inch; // diameter of auger shaft
+auger_pin_OD = 1/8*inch; // diameter of hole for retaining pin
+auger_pin_len = 32; // space around auger pin
+auger_pin_Z = 57; // mm between auger bolt flats and pin hole
+
 
 
 // Stepper mount dimensions
@@ -64,6 +77,7 @@ stepper_holeOD=22.5; // central hole
 stepper_shaftOD=5.1; // shaft where drive gear sits
 stepper_height = 55; // Z height of stepper hole
 
+stepper_old_frameXY=42.5; // historic stepper size, for backward compatibility
 
 /*
 // NEMA 23: stepper mass is 1.5kg
@@ -87,37 +101,85 @@ M3_insertOD=3.8; // space for heat-insert bit
 M3_insertZ=6;
 
 /* --------------- Geartrain ------------------
- Input side: connects to the D shaft of a NEMA 17 stepper motor.
- Output side: connects to the hex shaft of the auger itself
+ Gear1: output gear on auger
+ 
+ Gear2: input gear on stepper
 */
+gear_clearance=0.1;
 
-gear_module=1.25; // large teeth for robustness and easy printing
-gear_teeth_stepper=8; // few teeth on stepper side
-gear_teeth_auger=gear_teeth_stepper*10; // torque amplification factor
-gear_thickness=10;
-gear_clearance=0.2;
+gear1_module=1.5; // large teeth for robustness and easy printing
+gear1_teeth_drive=10; 
+gear1_teeth_auger=gear1_teeth_drive*6; // torque amplification factor
+gear1_thickness=16;
+
+gear_taper=2; // Z taper leading into each gear
+gear12_space=gear_taper; // space between levels 1 and 2
+
+gear2_module=1.25; // smaller teeth on stepper side (to fit more teeth)
+gear2_teeth_stepper=8; // few teeth on stepper side
+gear2_teeth_reducer=gear2_teeth_stepper*6;
+gear2_thickness=10;
+
+
+gear1_augerR = outer_radius(teeth=gear1_teeth_auger, mod=gear1_module);
+gear1_driveR = outer_radius(teeth=gear1_teeth_drive, mod=gear1_module);
+gear2_reducerR = outer_radius(teeth=gear2_teeth_reducer, mod=gear2_module);
+gear2_stepperR = outer_radius(teeth=gear2_teeth_stepper, mod=gear2_module);
+
 
 gearZ_floor = 2.5; // base plate on top of hopper print
 gearZ_auger = gearZ_floor + 1.5; // washer spaces auger gear over floor
-gearZ_stepper = gearZ_auger + gear_thickness + 15; // face of stepper lets shaft reach drive gear
 
-// location of stepper relative to auger top
-stepper_center = [0,gear_clearance + gear_dist(mod=gear_module, teeth1=gear_teeth_stepper, teeth2=gear_teeth_auger), gearZ_stepper];
-stepper_rotate = [180,0,-45];
+gearZ2_floor = gearZ_auger + gear1_thickness + gear12_space; // Z start of gearplane 2
+gearZ_stepper = gearZ2_floor + gear2_thickness + 12; // face of stepper, to let stepper's shaft reach drive gear
 
-// Gear on stepper's output shaft.  Origin is base of gear
+
+
+gear12_axle = [0,gear_clearance + gear_dist(mod=gear1_module, teeth1=gear1_teeth_drive, teeth2=gear1_teeth_auger), 0];
+
+
+// location of reducer gear axle
+auger_reducer_angle=100; // angle of auger gear from reducer gear
+auger_reducer_dist = gear_clearance + gear_dist(mod=gear1_module, teeth1=gear1_teeth_drive, teeth2=gear1_teeth_auger);
+reducer1_center = [
+    cos(auger_reducer_angle)*auger_reducer_dist,
+    sin(auger_reducer_angle)*auger_reducer_dist,
+    gearZ_auger];
+reducer1_rotate = [0,0,0];
+
+// absolute location of stepper gear axle top
+stepper_reducer_angle=0; // angle of stepper gear from reducer gear
+stepper_reducer_dist = gear_clearance + gear_dist(mod=gear2_module, teeth1=gear2_teeth_stepper, teeth2=gear2_teeth_reducer);
+stepper_center = reducer1_center + [
+    cos(stepper_reducer_angle)*stepper_reducer_dist, 
+    sin(stepper_reducer_angle)*stepper_reducer_dist, 
+    gearZ_stepper - gearZ_auger];
+stepper_rotate = [0,0,0];
+
+// historic stepper location, for baseplate and hopper compatibility
+stepper_old_center = [0,56, 29];
+stepper_old_rotate = [180,0,-45];
+
+
+
+// Gear on stepper's output shaft.  Origin is base of gear, at gearZ2_floor
 module gear_stepper() {
     boss_OD=16;
-    taper=2; // Z taper leading into gear
     boss_Z=18; // full length of stepper's shaft, minus mount plate thickness
+    
     boss_tapD=M3_tapID; // tapped for M3 setscrew
     
     shaft_ID=5;
+    
+    translate([0,0,boss_Z])
+    rotate([180,0,0])
     difference() {
         union() {
-            spur_gear(teeth=gear_teeth_stepper, mod=gear_module, thickness=gear_thickness+taper, anchor=BOTTOM);
-            translate([0,0,gear_thickness-0.01]) cylinder(r1=pitch_radius(teeth=gear_teeth_stepper, mod=gear_module), r2=boss_OD/2, h=taper);
-            translate([0,0,gear_thickness+taper-0.01]) cylinder(d=boss_OD,h=boss_Z-gear_thickness-taper);
+            spur_gear(teeth=gear2_teeth_stepper, mod=gear2_module, thickness=gear2_thickness+gear_taper, anchor=BOTTOM);
+            translate([0,0,gear2_thickness+gear_taper-0.01]) cylinder(d=boss_OD,h=boss_Z-gear2_thickness-gear_taper);
+            
+            // bevel out to teeth
+            translate([0,0,gear2_thickness-0.01]) cylinder(r1=gear2_stepperR-gear2_module*1.6, r2=boss_OD/2, h=gear_taper);
         }
         
         difference() {
@@ -128,12 +190,64 @@ module gear_stepper() {
         }
         
         // sideways M3 grub screws
-        grubZ = gear_thickness + 0.5*(boss_Z - gear_thickness);
+        grubZ = gear2_thickness + 0.5*(boss_Z + gear_taper/2 - gear2_thickness);
         for (angle=[0,90]) rotate([0,0,angle])
         translate([0,0,grubZ])
             rotate([0,90,0])
                 cylinder(d=boss_tapD,h=10);
     }
+}
+
+// Rib cuts for a gear, between rI inside and rO outside.
+module gear_ribs2D(rI,rO, ribcount=6, rib=6, round=6)
+{
+    offset(r=+round) offset(r=-round)
+    difference() {
+        circle(r=rO);
+        circle(r=rI);
+        for (ribAngle=[0:360/ribcount:180]) rotate([0,0,ribAngle])
+            square([200,rib],center=true);
+        children();
+    }
+}
+
+
+// Reduction gear connects stepper to auger drive gear
+module gear_reducer() {
+    
+    difference() {
+        union() {
+            translate([0,0,gearZ_auger])
+                spur_gear(teeth=gear1_teeth_drive, mod=gear1_module, thickness=gear1_thickness + gear12_space + 1, anchor=BOTTOM);
+            translate([0,0,gearZ2_floor])
+                spur_gear(teeth=gear2_teeth_reducer, mod=gear2_module, thickness=gear2_thickness, anchor=BOTTOM);
+                
+            // bevel out, for strength
+            translate([0,0,gearZ2_floor-gear_taper])
+                cylinder(r1=10/2,r2=gear1_driveR+1,h=gear_taper);
+            
+        }
+        
+        // lighten holes/ribs
+        translate([0,0,gearZ2_floor+gear2_thickness-1]) scale([1,1,-1])
+        linear_extrude(height=gear2_thickness,convexity=4) 
+            gear_ribs2D(gear1_driveR + 2,
+                pitch_radius(teeth=gear2_teeth_reducer, mod=gear2_module) - 4,
+                round=3);
+        
+        // shaft hole
+        cylinder(d=8.0+2*clearance,h=100,center=true);
+        
+        // press-in bushing holes
+        bushingD=10+clearance;
+        bushingZ=10;
+        translate([0,0,gearZ_auger])
+            cylinder(d=bushingD,h=bushingZ);
+        translate([0,0,gearZ2_floor+gear2_thickness-bushingZ])
+            cylinder(d=bushingD,h=bushingZ);
+        
+    }
+    
 }
 
 // Make space for auger's shaft
@@ -148,48 +262,62 @@ module auger_mount_hole()
     }
 }
 
-// Gear on auger shaft.  Origin is center of gear.
+
+// Big gear on auger shaft.  Hopper origin.
 module gear_auger() {
     difference() {
         union() {
-            difference() {
-                spur_gear(teeth=gear_teeth_auger, mod=gear_module, thickness=gear_thickness, anchor=BOTTOM);
-                
-                // lighten holes
-                rI = auger_shaft_OD/2 + 3;
-                rO = pitch_radius(teeth=gear_teeth_auger, mod=gear_module) - 4;
-                round=6;
-                rib=6;
-                translate([0,0,-0.01])
-                linear_extrude(height=gear_thickness+0.02,convexity=4) 
-                    offset(r=+round) offset(r=-round)
-                    difference() {
-                        circle(r=rO);
-                        circle(r=rI);
-                        for (ribAngle=[0:60:180]) rotate([0,0,ribAngle])
-                            square([200,rib],center=true);
-                    }
-            }
+            // baked-in washer to keep gear teeth above floor
+            translate([0,0,gearZ_floor])
+            cylinder(d=auger_shaft_OD+10,h=gear1_thickness);
             
-            // This ridge supports a pull pin through the auger shaft
-            ridge_thick=10;
-            ridge_Z = gear_thickness + 6;
-            translate([0,ridge_thick/2,ridge_Z/2])
+            // Gear itself
+            translate([0,0,gearZ_auger])
             difference() {
-                cube([auger_pin_len,ridge_thick,ridge_Z],center=true);
-                for (screw=[-1,+1]) translate([screw*auger_pin_len*0.4,0,0])
-                    cylinder(d=M3_tapID,h=ridge_Z+1,center=true);
+                spur_gear(teeth=gear1_teeth_auger, mod=gear1_module, thickness=gear1_thickness, anchor=BOTTOM);
+                
+                // lighten holes/ribs
+                translate([0,0,-0.01])
+                linear_extrude(height=gear1_thickness+0.02,convexity=4) 
+                    gear_ribs2D(auger_shaft_OD/2 + 3,
+                        pitch_radius(teeth=gear1_teeth_auger, mod=gear1_module) - 6)
+                            // Add reinforcing around auger pin
+                            square([auger_pin_len+20,14],center=true);
             }
         }
+        // M3 screws can be added to hold the gear's layers together
+        translate([0,0,gearZ_auger])
+        for (screw=[-1,+1]) translate([screw*auger_pin_len*0.3,-screw*5,0])
+            cylinder(d=M3_tapID,h=gear1_thickness+3);
         
         // pull pin through auger shaft
-        translate([0,0,gear_thickness + auger_pin_OD/2])
-            rotate([0,90,0])
+        translate([0,0,inducer_Z_cylinder + auger_hex_Z + auger_pin_Z])
+        rotate([0,90,0])
+        {
+            // Space for shaft of pin
             hull() {
-                for (extract=[0,1]) translate([-extract*10,0,0])
-                    cylinder(d=auger_pin_OD,h=auger_pin_len+1,center=true);
+                for (extract=[0,1]) translate([-extract*20,0,0])
+                    cylinder(d=auger_pin_OD,h=auger_pin_len+6,center=true);
             }
-        
+            // Space for head of pin (modified M3 screw) to slide back out
+            difference() 
+            {
+                hull() {
+                    for (extract=[[0,1],[1,1],[1,2]]) translate([-extract[0]*20,0,extract[1]*auger_pin_len/2])
+                        cylinder(d=7,h=20);
+                }
+                // clip to retain back of head
+                translate([-6,2,auger_pin_len/2 + 4])
+                    cube([3,5,2]);
+            }
+            translate([0,0,auger_pin_len/2+4+M3_shaftOD/2])
+            rotate([0,-90,0]) cylinder(d=M3_tapID,h=20,center=true);
+            
+            // Slot so pin's clip can deflect for add/remove
+            translate([-3,0,auger_pin_len/2 - 3])
+                cube([0.5,10,20]);
+            
+        }
         auger_mount_hole();
         
     }
@@ -271,8 +399,8 @@ module auger_bearing_ribs() {
 }
 
 geartrain_cover_clearR = 2.0; // side clearance for gear teeth
-geartrain_cover_clearZ = 6.0; // top clearance for gear clip, drive lug, etc
-geartrain_cover_bigR = geartrain_cover_clearR + outer_radius(teeth=gear_teeth_auger, mod=gear_module);
+geartrain_cover_clearZ = 2.0; // top clearance above gear
+geartrain_cover_bigR = geartrain_cover_clearR + gear1_augerR;
 geartrain_cover_wall = 1.7;
 
 // Covers up front of main drive gear, to keep concrete out of the gear teeth
@@ -282,7 +410,7 @@ module geartrain_cover() {
     rib_thick=2.5;
     
     lo = gearZ_floor; // bottom of bottom floor
-    hi = gearZ_auger + gear_thickness + geartrain_cover_clearZ; // bottom of top floor
+    hi = gearZ_auger + gear1_thickness + geartrain_cover_clearZ; // bottom of top floor
     
     bigR = geartrain_cover_bigR;
     
@@ -299,7 +427,6 @@ module geartrain_cover() {
                 translate([0,0,floor/2])
                 linear_extrude(height=floor,center=true,convexity=4)
                     intersection() {
-                        translate([0,-200,0]) square([400,400],center=true);
                         //translate([0,-ribYrange*0.5,0])
                         //    square([2*(hopper_plate_bolts[0][0]+5),ribYrange],center=true);
                         hopper_mount_plate_2D();
@@ -307,9 +434,9 @@ module geartrain_cover() {
             }
             
             // Reinforcing ribs
-            for (ribYI=[0,0.4,1]) 
+            for (ribYI=[0.5,1]) 
             intersection() {
-                ribY = ribYI * (-ribYrange)-0.5*rib_thick;
+                ribY = ribYI * (-ribYrange)-rib_thick;
                 // taper down from cylinder to base plate
                 hull() {
                     front_extra = (ribYI==1)?12:0; // lip in front, to stop spilling material during loading
@@ -343,21 +470,100 @@ module geartrain_cover() {
         hull() for (d=[[0,0], [50,50],[-50,50]]) translate(d)
             cylinder(d=1.9*ribYrange,h=100,center=true);
         
+        // trim off back side
+        translate([0,-ribYrange/2+200,0]) cube([400,400,400],center=true);
+    }
+}
+
+stepper_mount_Ystart = 17; // Y coordinate to trim this part
+
+// Holds stepper and reducer gear
+module geartrain_stepper_mount2D(flatwall=1)
+{
+    block=2.5; // thickness of walls around stepper
+    round=3.5; //< subtle: must be less than 8/2 for reducer shaft to fit here
+    long = 54+stepper_frameXY+block; // tune to match Ystart
+    offset(r=-round) offset(r=+round)
+    {
+        // Flat wall on bottom edge
+        if (flatwall)
+            translate([0,stepper_mount_Ystart+block/2,0])
+                square([2*long,block],center=true);
+        
+        // Support walls around stepper
+        translate(stepper_center) rotate(stepper_rotate) 
+        translate([-stepper_frameXY/2-block,-stepper_frameXY/2-block,0])
+        {
+            // Vertical walls
+            rX=stepper_frameXY+block;
+            for (x=[0,rX/2,rX])
+                translate([x,0]) scale([1,-1]) square([block,stepper_frameXY]);
+            
+            // Stepper surrounded by frame
+            translate([block+stepper_frameXY/2,block+stepper_frameXY/2])
+            difference() {
+                square([2*block + stepper_frameXY,2*block + stepper_frameXY],center=true);
+                square([stepper_frameXY,stepper_frameXY],center=true);
+            }
+        }
+        
+        // Reach out to hold the reducer gear
+        translate(replaceZ(reducer1_center,0))
+            union() {
+                circle(d=25);
+                for (ribangle=[45,90])
+                rotate([0,0,ribangle]) translate([0,8]) scale([-1,1])
+                    square([100,block]);
+            }
     }
 }
 
 // Stepper motor bolts onto this
-module geartrain_stepper_mount() 
+module geartrain_stepper_mount(support=0) 
 {
     floor=2.5;
-    Ystart = 20; // Y coordinate to trim this part
+    
+    
+    if (support) {
+        intersection() {
+            translate([5,stepper_mount_Ystart,2]) scale([-1,1,1])
+            {
+                cube([25,100,1.5]);
+                cube([2,100,6]);
+            }
+            cylinder(r=geartrain_cover_bigR-0.4,h=100,center=true);
+        }
+    }
+    
     intersection() {
+        
         // trim off entire part to Y>=Ystart and Z>=gearZ_floor
         difference() {
-            translate([0,Ystart+500,gearZ_floor+500]) cube([175,1000,1000],center=true);
+            union() {
+                translate([0,stepper_mount_Ystart+500,gearZ_floor+500]) cube([168,1000,1000],center=true);
+
+                // Allow stuff to stick down into old stepper hole
+                linear_extrude(height=10)
+                    geartrain_stepper_old2D(-1.0);
+            }
+            
             // stay away from central gear
-            cyl(r=geartrain_cover_bigR,h=2*(gearZ_auger + gear_thickness + geartrain_cover_clearZ), chamfer=4, anchor=CENTER);
-            cyl(d=auger_pin_len+10,h=2*(gearZ_auger + gear_thickness + 10), chamfer=4, anchor=CENTER);
+            cyl(r=geartrain_cover_bigR,h=2*(gearZ_auger + gear1_thickness + geartrain_cover_clearZ+2), chamfer=3, anchor=CENTER);
+            
+            // stay away from reducer gear
+            hull() {
+                Zspace=1;
+                translate(replaceZ(reducer1_center,gearZ2_floor-Zspace)) 
+                    cyl(r=gear2_reducerR+geartrain_cover_clearR,h=gear2_thickness+2*Zspace, chamfer=Zspace, anchor=BOTTOM);
+                translate(replaceZ(reducer1_center,gearZ_auger)) 
+                    cyl(r=gear1_driveR+geartrain_cover_clearR,h=gear1_thickness+2*Zspace, chamfer=Zspace, anchor=BOTTOM);
+            }
+            
+            // Leave space to insert reducer gear axle
+            translate(replaceZ(reducer1_center,1))
+                cylinder(d=8,h=100);
+            
+            //hull() translate(replaceZ(reducer1_center,0))  gear_reducer();
         }
         
         union() {
@@ -373,59 +579,29 @@ module geartrain_stepper_mount()
                             square([stepper_frameXY,stepper_frameXY],center=true);
                     }
             
-            // walls around stepper itself
-            translate(stepper_center) rotate(stepper_rotate) {
-
-                // Stepper base plate with actual mounting bolt holes
+            // Stepper base plate with actual mounting bolt holes
+            translate(stepper_center) rotate(stepper_rotate) 
+                scale([1,1,-1]) // extrude walls down from stepper
                 linear_extrude(height=floor,convexity=6) 
                 difference() {
                     square([stepper_frameXY,stepper_frameXY],center=true);
                     circle(d=stepper_holeOD);
                     for_stepper_bolt_centers_local() circle(d=M3_thru);
                 }
-                
-                // Extra block to hold stepper down
-                block=2.5;
-                round=4;
-                translate([-stepper_frameXY/2-block,-stepper_frameXY/2-block,0])
-                difference()
-                { // origin is at back corner of stepper mount now
-                    long = 54+stepper_frameXY+block; // tune to match Ystart
-                    z = stepper_center[2];
-                    union() {
-                        linear_extrude(height=z,convexity=4)
-                        {
-                            offset(r=-round) offset(r=+round)
-                            {
-                                // Hardmount long wall diagonals
-                                square([long,block]);
-                                square([block,long]);
-                                
-                                // Stepper surrounded by frame
-                                translate([block+stepper_frameXY/2,block+stepper_frameXY/2])
-                                difference() {
-                                    square([2*block + stepper_frameXY,2*block + stepper_frameXY],center=true);
-                                    square([stepper_frameXY,stepper_frameXY],center=true);
-                                }
-                            
-                                // Bottom plate (for printability and diagonal stiffness)
-                                translate([long,0]) rotate([0,0,90+45]) square([long*1.41,block]);
-                            }
-                        }
-                        
-                        // Heavy bevels along long walls
-                        start=26; // non-bevel distance to avoid too much overhang
-                        bevel=8;
-                        translate([0,0,stepper_center[2]-bevel])
-                        for (angle=[0,90]) rotate([0,0,angle])
-                            rotate([45,0,0]) translate([start,0,0]) 
-                                cube([long-start,bevel,bevel]);
-                    }
-                    
-                    // hole for stepper wiring zip tie
-                    translate([long*0.75,0,z*0.3]) rotate([90,0,0]) cylinder(d=10,h=20,center=true);
+            
+            // Walls around stepper and such
+            scale([1,1,1]) // extrude walls down from stepper
+                linear_extrude(height=stepper_center[2],convexity=6)
+                    geartrain_stepper_mount2D();
+            
+            // Top closeout plate, for stiffening and debris rejection
+            translate([0,0,stepper_center[2]]) scale([1,1,-1])
+                linear_extrude(height=2,convexity=4) 
+                difference() {
+                    hull() geartrain_stepper_mount2D(0);
+                    translate(stepper_center) rotate(stepper_rotate) 
+                        square([stepper_frameXY,stepper_frameXY],center=true);
                 }
-            }
         }
     }
 }
@@ -437,6 +613,16 @@ module geartrain_frame_bolt_bosses()
         translate([0,0,gearZ_floor-0.1])
             cylinder(d1=20,d2=10,h=3); // bolt bosses above plate
     }
+}
+
+// 2D shape of old stepper outline
+module geartrain_stepper_old2D(enlarge=0)
+{
+    round=5; // rounding applied to stepper access cut (for strength)
+
+    translate(stepper_old_center) rotate(stepper_old_rotate) 
+        offset(r=+round+enlarge) offset(r=-round)
+            square([stepper_old_frameXY,stepper_old_frameXY],center=true);
 }
 
 // Frame holds all the gear parts together.  Bolts down onto hopper.
@@ -452,13 +638,11 @@ module geartrain_frame()
                     // material under front gear
                     difference() {
                         circle(r=geartrain_cover_bigR + geartrain_cover_wall);
-                        circle(d=auger_shaft_OD);
+                        circle(d=auger_shaft_OD+clearance);
                     }
                 }
-                round=5; // rounding applied to stepper access cut (for strength)
-                translate(stepper_center) rotate(stepper_rotate) 
-                    offset(r=+round) offset(r=-round)
-                    square([stepper_frameXY,stepper_frameXY],center=true);
+                
+                geartrain_stepper_old2D();
             }
             
             
@@ -484,26 +668,36 @@ module geartrain_assembled()
     color([1,0.5,0.5]) 
             geartrain_stepper_mount();
     
-    translate([0,0,gearZ_auger]) gear_auger();
+    gear_auger();
+    
+    translate(replaceZ(reducer1_center,0)) gear_reducer();
+    
+    
     
     color([1,0,1]) {
-        translate([stepper_center[0], stepper_center[1], gearZ_auger]) 
-            gear_stepper();
-        
         translate(stepper_center) rotate(stepper_rotate) 
-            square([42,42],center=true); // NEMA 17 outside
+        {
+            #square([42,42],center=true); // NEMA 17 outside
+            
+            rotate([180,0,0])
+                gear_stepper();
+        }
     }
     
     //# geartrain_cover();
 }
 
-// Printable parts in geartrain, ready for printing
-module geartrain_printable() {
-    d=stepper_center[1]*1.1; // distance between parts
-    gear_auger();
-    translate([0,d,0]) gear_stepper();
-    //translate([d,0,0]) auger_clamp(); // no longer needed
-    //translate([0.8*d,0.8*d,0]) auger_bearing_stack(); // printed separately
+// Printable gears in geartrain, ready for printing
+module gears_printable() {
+    d=gear1_augerR; // distance between parts
+    rotate([180,0,0]) 
+        translate([0,0,-(gearZ_auger+gear1_thickness)]) gear_auger();
+    
+    translate([0,d+5+gear2_stepperR,0]) gear_stepper();
+    
+    translate([d+5+gear2_reducerR,0,0]) 
+        rotate([180,0,0]) translate([0,0,-(gearZ2_floor+gear2_thickness)]) gear_reducer();
+    
 }
 
 
@@ -513,7 +707,7 @@ module geartrain_frame_printable() {
             geartrain_frame();
 }
 module geartrain_stepper_printable() {
-    rotate([90,0,0]) geartrain_stepper_mount();
+    rotate([90,0,0]) geartrain_stepper_mount(1);
 }
 module geartrain_cover_printable() {
     translate([0,0,-gearZ_floor]) geartrain_cover();
@@ -529,9 +723,9 @@ module for_stepper_bolt_centers_local()
         children();
 }
 
-module for_stepper_bolt_centers()
+module for_stepper_old_bolt_centers()
 {
-    translate(stepper_center) rotate(stepper_rotate) {
+    translate(stepper_old_center) rotate(stepper_old_rotate) {
         for_stepper_bolt_centers_local()
             children();
     }
@@ -544,11 +738,11 @@ module hopper_mount_plate_2D()
             hull() {
                 for_hopper_plate_bolts() circle(d=10);
                 
-                translate(stepper_center) rotate(stepper_rotate) 
+                translate(stepper_old_center) rotate(stepper_old_rotate) 
                     offset(r=3)
-                    square([stepper_frameXY,stepper_frameXY],center=true);
+                    square([stepper_old_frameXY,stepper_old_frameXY],center=true);
                 
-                for_stepper_bolt_centers() circle(d=16);
+                for_stepper_old_bolt_centers() circle(d=16);
                 offset(r=hopper_top_rim) intersection() {
                     hopper_top_plate_2D();
                     square([200,85],center=true);
@@ -558,10 +752,10 @@ module hopper_mount_plate_2D()
         }
         
         for_hopper_plate_bolts() circle(d=M3_thru);
-        circle(d=auger_shaft_OD); // hole for auger shaft to pass through
+        circle(d=auger_shaft_OD+clearance); // hole for auger shaft to pass through
         
-        for_stepper_bolt_centers() circle(d=M3_thru);
-        translate(stepper_center) rotate(stepper_rotate) circle(d=stepper_holeOD);
+        //for_stepper_bolt_centers() circle(d=M3_thru);
+        //translate(stepper_center) rotate(stepper_rotate) circle(d=stepper_holeOD);
     }
 }
 
@@ -578,7 +772,7 @@ module auger_weld_support()
             cylinder(d1=auger_shaft_OD+5,d2=auger_shaft_OD+2,h=12);
             cylinder(d=auger_thread_OD,h=2);
         }
-        cylinder(d=auger_shaft_OD,h=100,center=true);
+        cylinder(d=auger_shaft_OD+clearance,h=100,center=true);
     }
 }
 
@@ -744,19 +938,20 @@ module hopper_shape(enlarge=0, enlarge_exit=0)
                 }
         }
         
+        /*
         // Carve space for stepper gear head to not interfere with hopper
         translate(stepper_center) rotate(stepper_rotate) {
             enlargelimit=2; // keep enlarged rim from hitting gear
             enlargelimited = enlarge>enlargelimit?enlargelimit:enlarge;
             
             cyl(r=15 - enlargelimited, h=25 - 2*enlargelimited, rounding=5, anchor=CENTER);
+        */
         /*
         // NEMA 17 hanging down:
             xy=44+2*5 - 2*enlarge;
             z=2*stepper_height - 2*enlarge;
             cuboid([xy,xy,z], rounding=10 - enlarge);
         */
-        }
     }
 }
 
@@ -923,14 +1118,14 @@ inducer_mountD = hopper_bearing_stack_OD+1; // outside of mounting cylinder
 inducer_Z_threadstop=-75; // Z height where auger helix threading stops
 
 // Dimensions of auger hole in inducer:
-auger_axle_OD=1/2*inch + 0.5; // across the shaft
-auger_hex_OD=3/4*inch + 0.5; // across the flats of the hex
+auger_axle_OD=auger_shaft_OD+clearance; // across the shaft
+auger_hex_OD=3/4*inch + clearance; // across the flats of the hex
 auger_hex_Z=11/32*inch; // height of hex head on auger bolt
 
 
 
 // The auger's welded-on top bolt needs a cross-drilled hole for retaining clip, at this distance from the top of the hex flats:
-bolt_Z_space = (gearZ_auger - inducer_Z_cylinder) - auger_hex_Z + gear_thickness + 3;
+bolt_Z_space = (gearZ_auger - inducer_Z_cylinder) - auger_hex_Z + gear1_thickness + 3;
 echo("Auger bolt top to clip hole: ",bolt_Z_space);
 
 
@@ -1307,7 +1502,7 @@ module demo_cutaway() {
     inducer_blade();
 }
 
-extruder_demo(); // Entire assembly
+//extruder_demo(); // Entire assembly
 //demo_cutaway();
 //geartrain_assembled();
 //hopper_shape(); // interior, for volume estimation
@@ -1316,8 +1511,7 @@ extruder_demo(); // Entire assembly
 // 3D printable parts:
 //hopper_printable();
 //inducer_printable();
-//geartrain_printable();
-//   rotate([180,0,0]) gear_stepper();
+gears_printable();
 //geartrain_frame_printable();
 //geartrain_cover_printable();
 //geartrain_stepper_printable();
