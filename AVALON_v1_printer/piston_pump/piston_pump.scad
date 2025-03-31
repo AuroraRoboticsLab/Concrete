@@ -63,11 +63,13 @@ module pistonDrivepinMount()
 // Actual piston face, facing down
 module pistonFace() {
     pistonOD = barrelID-1.0; // space to insert (seal with silicone)
-    outerwall=1.6;
+    outerwall=1.8;
+    floor=6;
     
     scale([1,1,-1]) 
     difference() {
         cylinder(d=pistonOD,h=pistonZ);
+        sealDeep=0.8;
         
         // Carve out pressure wall, so material pushes seal closed
         round=8;
@@ -80,25 +82,32 @@ module pistonFace() {
                         square([16+0.1,50]);
                 }
                 
-                translate([0,10]) square([pistonOD/2-round,50]);
+                translate([0,floor]) square([pistonOD/2-round,50]);
                 
                 // Sealing rings
                 sealRound=0.8;
-                sealDeep=0.8;
                 offset(r=+sealRound) offset(r=-sealRound)
-                for (sealZ=[0:4:pistonZ-3]) 
+                for (sealZ=[3:4:pistonZ-3]) 
                     translate([pistonOD/2-sealDeep,sealZ])
                         rotate([0,0,-90+45])
                             square([10,10]);
             }
             
-            pistonBoltCenters() cylinder(d1=20,d2=10,h=10);
+            difference() {
+                for (angle=[0:360/8:180-1]) rotate([0,0,angle]) {
+                    translate([0,0,pistonZ/2])
+                    cube([pistonOD-3*sealDeep,outerwall,pistonZ],center=true);
+                }
+                cylinder(d1=55,d2=pistonOD,h=pistonZ+1);
+            }
+            
+            pistonBoltCenters() cylinder(d1=20,d2=10,h=floor);
         }
         
         // Tap M3 in here to mount piston to linear actuator driver
-        pistonBoltCenters() cylinder(d=2.7,h=8);
+        pistonBoltCenters() cylinder(d=3.4,h=15);
         
-        
+        if (0)
         for (vent=[0:180:360-1]) rotate([0,0,vent])
             translate([pistonOD/2-1.5*round,0,+8])
             rotate([0,20,0])
@@ -108,9 +117,42 @@ module pistonFace() {
                 cylinder(d1=in+2,d2=in,h=4);
                 cylinder(d=in,h=20);
             }
+        
+        //color([1,0,0]) cube([200,200,200]);
     }
 }
 
+sealOD = barrelID+2.5; // extra friction fit onto barrel walls
+sealH = 12; 
+sealW = 1.2;
+
+// Flexible ring
+module sealingRing(enlarge=0) {
+    round=3;
+    rotate_extrude()
+    offset(r=-round) offset(r=+round + enlarge)
+    {
+        translate([sealOD/2 - sealW,0]) square([sealW,sealH]);
+        translate([sealOD/2 - sealH,0]) square([sealH,sealW]);
+    }
+}
+
+// Occupies space around exit point
+module taperPlug() {
+    difference() {
+        cylinder(d1=barrelID-3,d2=52,h=20);
+        
+        sealingRing(0.0);
+        
+        pistonBoltCenters() cylinder(d=2.7,h=15);
+    }
+}
+
+
+
+
 //pistonDrivepinMount();
 pistonFace();
+//sealingRing();
+//taperPlug();
 

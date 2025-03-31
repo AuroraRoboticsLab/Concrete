@@ -7,7 +7,7 @@ inch=25.4; // file units: mm
 barrelID=100.0;
 
 // Height of piston down barrel
-pistonZ = 20;
+pistonZ = 50;
 
 // Number of bolts holding the linear actuator to the piston
 pistonBolts=4;
