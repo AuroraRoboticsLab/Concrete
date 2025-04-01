@@ -122,17 +122,28 @@ module pistonFace() {
     }
 }
 
-sealOD = barrelID+2.5; // extra friction fit onto barrel walls
+sealExtraOD=2.0; // taper outwards this far
+sealOD = barrelID; // extra friction fit onto barrel walls
 sealH = 12; 
 sealW = 1.2;
 
 // Flexible ring
 module sealingRing(enlarge=0) {
-    round=3;
+    round=2.5;
     rotate_extrude()
     offset(r=-round) offset(r=+round + enlarge)
     {
-        translate([sealOD/2 - sealW,0]) square([sealW,sealH]);
+        translate([sealOD/2 - sealW,0]) hull() {
+            square([sealW,sealW]); // base
+            
+            translate([sealExtraOD/2,sealH-sealW])
+            {
+                square([sealW,sealW]); // outer bevel
+                translate([sealW,0]) {
+                    square([0.1,2*sealW]); // scraper tip
+                }
+            }
+        }
         translate([sealOD/2 - sealH,0]) square([sealH,sealW]);
     }
 }
@@ -152,7 +163,7 @@ module taperPlug() {
 
 
 //pistonDrivepinMount();
-pistonFace();
-//sealingRing();
+//pistonFace();
+sealingRing();
 //taperPlug();
 
