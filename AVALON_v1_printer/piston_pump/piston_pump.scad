@@ -151,11 +151,17 @@ module sealingRing(enlarge=0) {
 // Occupies space around exit point
 module taperPlug() {
     difference() {
-        cylinder(d1=barrelID-3,d2=52,h=20);
+        cylinder(d1=barrelID-3,d2=40,h=25);
         
-        sealingRing(0.0);
+        space=0.3; // XY space around sealing ring
+        vspace=-0.1; // vertical space is an interference fit
+        translate([0,0,-space+vspace])
+            sealingRing(space);
         
-        pistonBoltCenters() cylinder(d=2.7,h=15);
+        pistonBoltCenters() {
+            cylinder(d=2.6,h=25); // tap M3 in here
+            cylinder(d1=4,d2=2.5,h=3); // taper entrance for easier assembly
+        }
     }
 }
 
@@ -164,6 +170,6 @@ module taperPlug() {
 
 //pistonDrivepinMount();
 //pistonFace();
-sealingRing();
-//taperPlug();
+//sealingRing();
+taperPlug();
 
