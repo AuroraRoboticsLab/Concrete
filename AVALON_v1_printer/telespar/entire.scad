@@ -3,7 +3,7 @@
 
 */
 
-fullview=0; // 0: fast;  1: complete
+fullview=2; // 0: fast, skip pulleys;  1: complete; 2: bumps along spars; 3: holes along spars
 
 entire=1; // sets flag to suppress geometry in includes
 include <interfaces.scad>;
@@ -90,37 +90,60 @@ sparRGB=[0.7,0.7,0.75]; // light blue-gray zinc coating
 // Make telespar of this length, facing in +Y direction.  
 // First hole is at origin
 // Holes are at 1 inch spacing, so includes extra half inch on each end.
-module make_spar(length=68*inch)
+module make_spar(name="Demo",length=68*inch)
 {
+    echo("Spar ",name," length ",length/inch+1," inches");
+    
     translate([-sparOD/2,-0.5*inch,-sparOD/2]) color(sparRGB) 
         cube([sparOD,1*inch+length,sparOD]);
+    if (fullview==2) {
+        for (face=[0,90]) rotate([0,face,0])
+        for (hole=[0:1*inch:length]) translate([0,hole,0])
+            color([0,0,0]) cube([sparOD+1,10,10],center=true);
+    }
 }
 
 
 
 
 
-// Total travel on each axis (must be integer inches for spar holes to line up)
+// Total nominal travel on each axis (must be integer inches for spar holes to line up)
 travelX = 72*inch;
 travelY = 72*inch;
 travelZ = 72*inch;
 
-frontY = 4*inch; // extra spar off front (open side)
-backY = 4*inch; // extra spar off back (crossbar side)
+leftX = 8*inch; // added chain on stepper side (extra long to keep stepper clear of Z axis)
+rightX = 6*inch; // added chain on idler side
+leftXE = 0*inch; 
+rightXE = 0*inch; // extra spar on right side past idler
 
-leftX = 8*inch; // stepper side
-rightX = 4*inch; // return side
+frontY = 4*inch; // added chain on front (open side)
+frontYE = 4*inch;
+backY = 4*inch; // added chain on back (crossbar side)
+backYE = 3*inch; // extra spar on back side
+backYC = -3*inch; // center of back crossbar relative to stepper
+
+bottomZE = 4*inch; // bottom extra spar length
+topZ = 4*inch;
+topZE = 5*inch; // top extra spar length (to bolt stuff on)
 
 // Total chain path (sprocket to sprocket) on each axis (must be integer inches)
 chainX = travelX + (leftX+rightX);
 chainY = travelY + (frontY+backY);
-chainZ = travelZ + 4*inch;
+chainZ = travelZ + topZ;
+
+module print_chain_len(name,length) {
+    echo("Motion stage ",name," chain straight ",length/inch," total ",(2*length/inch+chain_teeth*0.5)," inches");
+}
+print_chain_len("X",chainX);
+print_chain_len("Y",chainY);
+print_chain_len("Z",chainZ);
 
 // Rotation to orient steppers on each axis
 //  Flip to put chain on the correct side of the spar (in chain coords)
 //  Start to move the spar to the correct location
 rotateZ = [90,0,0];  flipZ=[1,1,1];  startZ = [-travelX/2,-travelY/2,0]+[-3*inch,0,0];
-rotateY = [0,-90,0];  flipY=[1,1,-1];  startY = [-travelX/2,-travelY/2,0]+[0,-backY,0];
+rotateY = [0,-90,0];  flipY=[1,1,1];  startY = [-travelX/2,-travelY/2,0]+[0,-backY,0];
 rotateX = [0,90,-90]; flipX=[1,1,-1];  startX = [-travelX/2,0,0]+[-leftX,0,sparOD+sparC];
 
 // Symmetry around X axis
@@ -135,16 +158,39 @@ module mirrorY() {
 }
 
 
+/* Create a spar and chain drive with this length (center of stepper to center of idler).
+   Origin is at the stepper, spar extends along +Y axis. */
+module motion_stage(name, length, preStepper=0, postIdler=0) {
+    stepperStart = preStepper + 1*inch; // extra spar under stepper
+    translate([0,-stepperStart,0]) make_spar(name, length+stepperStart+postIdler);
+
+    chain_drive(length);
+}
+
+// Flip Y axis on this 3D point
+function flipY(p) = [p[0],-p[1],p[2]];
+
 // Z axis uprights
 module sparsZ() {
     // Main Z upright spars
     mirrorX() mirrorY() 
         translate(startZ) rotate(rotateZ) {
-            scale(flipZ) {
-                make_spar(chainZ);
-                chain_drive(chainZ);
-            }
+            scale(flipZ) motion_stage("Z",chainZ, bottomZE, topZE);
         }
+    
+    // Base and top X crossbars 
+    overhangX=24*inch;
+    for (z=[-5*inch,chainZ+3*inch]) translate([0,0,z])
+    mirrorY()
+    translate(startZ+[-overhangX,-sparOD,0]) rotate([0,0,-90]) make_spar("ZcrossX",travelX+2*overhangX);
+    
+    // Base and top Y crossbars 
+    overhangY=24*inch;
+    bot = -3*inch;
+    top = chainZ+5*inch;
+    for (xside=[-1,+1]) scale([xside,1,1])
+    for (z=(xside<0)?[top]:[bot,top]) translate([0,0,z])
+        translate(startZ+[-sparOD,-overhangY,0]) make_spar("ZcrossY",travelY+2*overhangY);
 }
 
 // Y axis spars
@@ -152,10 +198,7 @@ module sparsY() {
     // Main Y roller spars
     mirrorX() 
         translate(startY) rotate(rotateY) {
-            scale(flipY) {
-                make_spar(chainY);
-                chain_drive(chainY);
-            }
+            scale(flipY) motion_stage("Y",chainY,backYE,frontYE);
             
             // V rollers on each end of Y, to index on Z uprights
             for (end=[0,1]) translate([0,(end?chainY-frontY:+backY),0])
@@ -166,28 +209,49 @@ module sparsY() {
             }
         }
    
-    // Back X crossbar keeps Ys spaced correctly, and can have diagonals for squareness
-    overhang=8*inch;
-    translate(startY+[-overhang,-3*inch+backY,+sparOD]) rotate([0,0,-90]) make_spar(travelX+2*overhang);
+    // The Y crossbar keeps Y spars spaced correctly,
+    //  it's a spot for diagonals to hold squareness,
+    //  also a good place for electronics boxes
+    overhang=2*inch;
+    mirrorY()
+    translate(startY+[-overhang,backYC,-sparOD]) rotate([0,0,-90]) make_spar("Ycross",travelX+2*overhang);
 }
 
 // X axis spar(s)
 module sparsX() {
     translate(startX) rotate(rotateX) {
-        scale(flipX) {
-            make_spar(chainX);
-            chain_drive(chainX);
-        }
+        scale(flipX) motion_stage("X",chainX,leftXE,rightXE);
         
-        for (end=[0,1]) translate([0,(end?chainX-rightX-sparOD/2:+leftX+sparOD/2),0])
+        for (end=[0,1]) translate([0,(end?chainX-rightX:+leftX),0])
             scale([1,end?-1:+1,1])
-            rotate([90,0,0])
-            rotate([0,0,90])
-            translate([0,0,-carrierXZ/2])
-                carrierX(); // +Z is down the spar
+            rotate([90,0,0]) rotate([0,0,90]) // move so Y+ is along the spar
+            { // +Z is down the spar, add brackets for rollers
+                translate([0,0,-sparOD/2-carrierXZ-carrierEdge])
+                    carrierX(); 
+                translate([0,0,+sparOD/2+carrierEdge])
+                    carrierXsupport();
+            }
     }
 }
 
+// Tool rack spars
+module sparsT() {
+    toolZDX = 12*inch; // inset from Z upright to tool uprights
+    startT = flipY(startZ)+[toolZDX,0,0];
+
+    // Upright tool rack spars on +Y face
+    mirrorX()
+        translate(startT) rotate(rotateZ) {
+            stepperStart=bottomZE+1*inch;
+            translate([0,-stepperStart,0]) make_spar("toolZ",chainZ+stepperStart+topZE);
+        }
+    
+    // Set of Z crossbars at various heights (to taste)
+    for (z=[16*inch, 32*inch, 48*inch, 64*inch]) 
+        translate(startT + [0,-sparOD,z]) rotate(rotateX) {
+            make_spar("toolX",chainX-2*toolZDX-8*inch);
+        }
+}
 
 //make_spar();
 //chain_drive();
@@ -200,5 +264,6 @@ sparsZ();
 translate([0,0,position[2]]) sparsY();
 translate([0,-travelY/2+position[1],position[2]]) sparsX();
 
+sparsT();
 
 

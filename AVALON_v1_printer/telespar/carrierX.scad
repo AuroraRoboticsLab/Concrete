@@ -10,9 +10,11 @@ include <BOSL2/threading.scad>
 
 carrierXW=2.4; // minimum wall thickness of X carrier
 carrierXF=2.0; // floor plate thickness
-carrierXZ=1.0*inch-1/8*inch; // along-spar length of X carrier
+carrierEdge=0.100*inch; // space between carrier and spar, for washer to roll
+carrierXZ=1.5*inch-carrierEdge; // total along-spar length of X carrier
+carrierXH=0.5*inch; // distance from bottom surface up to mounting bolt hole
 
-sparC=1.5; // clearance between X and Y spars
+sparC=3; // clearance between X and Y spars
 
 rollerboltT=5/16*inch; // tap diameter of 3/8" bolts holding rollers
 rollerTW=3.2; // wall thickness around roller tap area
@@ -38,7 +40,7 @@ module carrierX2D(hole=rollerboltT) {
         union() {
             carrierX2Dbasic(1);
             
-            // Crossbar on top of bolt
+            // Crossbar over top of roller bolts
             translate([0,rollerY + rollerboltT/2+rollerTW/2])
                 square([rollerX*2,rollerTW],center=true);
             
@@ -63,13 +65,11 @@ module carrierX(crossbolt=1, baseplate=1, hole=rollerboltT, height=carrierXZ)
     boss=0.75*height; // size of bosses over bolt entrances
     taper=3.2;
 
-    translate([0,0,height/2])
     difference() {
         union() {        
             // Base plate
             if (baseplate) 
-            for (topbot=[-1,+1]) scale([1,1,topbot])
-            translate([0,0,-height/2])
+            for (z=[0,height-carrierXF]) translate([0,0,z])
             linear_extrude(height=carrierXF) 
             difference() {
                 hull() carrierX2Dbasic(1);
@@ -77,14 +77,14 @@ module carrierX(crossbolt=1, baseplate=1, hole=rollerboltT, height=carrierXZ)
             }
             
             // Walls
-            linear_extrude(height=height,center=true,convexity=6) 
+            linear_extrude(height=height,convexity=6) 
                 carrierX2D(hole=hole);
                 
             if (crossbolt) { // bosses around crossbolt entrances
                 intersection() {
-                    cube([500,500,height],center=true);
+                    translate([-200,-200,0]) cube([400,400,height]);
                     for (side=[-1,+1]) scale([side,1,1])
-                        translate([sparOD/2,0]) rotate([0,90,0])
+                        translate([sparOD/2,0,carrierXH]) rotate([0,90,0])
                             cylinder(d1=boss+2*taper,d2=boss,h=taper);
                 }
             }
@@ -95,30 +95,34 @@ module carrierX(crossbolt=1, baseplate=1, hole=rollerboltT, height=carrierXZ)
         // Cut in threads
         for (side=[-1,+1]) translate([side*rollerX,rollerY])
         {
-            threaded_rod(d=3/8*inch-0.2,pitch=1/16*inch,h=height+5);
-            translate([0,0,-height/2])
-                cylinder(d1=sparbolt,d2=5/16*inch,h=5);
+            threaded_rod(d=3/8*inch-0.2,pitch=1/16*inch,h=height+5,anchor=BOTTOM);
+            if (crossbolt) 
+                translate([0,0,height+0.01]) scale([1,1,-1])
+                    cylinder(d1=sparbolt,d2=5/16*inch,h=5); // taper 
         }
         
-        if (crossbolt) rotate([0,90,0]) { // thru hole for crossbolt
-            cylinder(d=sparbolt,h=2*sparOD,center=true);
-        }
-
-        if (crossbolt) rotate([0,90,0]) 
-        { // end clearances for crossbolt head
-            nutOD=9/16*inch/cos(30);
-            translate([0,0,sparOD/2+taper])
-                cylinder(d=nutOD+4,h=sparOD);
-            scale([1,1,-1]) // hex to hold crossbolt nut
-                rotate([0,0,30])
-                    cylinder(d=nutOD+0.2,h=sparOD,$fn=6);
+        if (crossbolt) {
+            translate([0,0,carrierXH]) rotate([0,90,0]) { 
+                // thru hole for crossbolt
+                cylinder(d=sparbolt,h=2*sparOD,center=true);
+        
+                // end clearances for crossbolt head
+                nutOD=9/16*inch/cos(30);
+                translate([0,0,sparOD/2+taper])
+                    cylinder(d=nutOD+4,h=sparOD);
+                
+                scale([1,1,-1]) // hex to hold crossbolt nut
+                    translate([0,0,sparOD/2+taper])
+                        rotate([0,0,30])
+                            cylinder(d=nutOD+0.2,h=sparOD,$fn=6);
+            }
         }
 
         
         // Version stamp
-        if (crossbolt) translate([sparOD/2+5,-15,-height/2])
+        if (crossbolt) translate([sparOD/2+5,-15,0])
             linear_extrude(height=1.0) rotate([0,0,-90]) scale([-1,1,1])
-                text("v0C",size=5,halign="center",valign="center");
+                text("v1A",size=5,halign="center",valign="center");
     }
 }
 
