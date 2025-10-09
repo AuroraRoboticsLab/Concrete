@@ -116,8 +116,14 @@ module Zroller_holder() {
         Zroller_bolts_all(enlarge=0.2,extraZ=20,bolts=0);
         
         Zroller_bolt_centers() translate([0,0,-wall-1])
-            threaded_rod(d=3/8*inch-0.1,pitch=1/16*inch,length=1.5*inch,anchor=BOTTOM);
-        
+        {
+            OD=3/8*inch-0.1;
+            len=1.5*inch;
+            if (is_undef(entire))
+                threaded_rod(d=OD,pitch=1/16*inch,length=len,anchor=BOTTOM);
+            else // faster simpler version
+                cylinder(d=OD,h=len);
+        }
         
         
         // Make space to insert the roller
@@ -164,7 +170,7 @@ module printable_Zroller3D() {
 if (is_undef(entire)) { // show the part
     //Zroller2D();
     //Zroller_demo();
-    //printable_Zroller_holder();
+    printable_Zroller_holder();
     printable_Zroller3D();
 }
 

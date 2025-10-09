@@ -1,9 +1,11 @@
 /*
- Entire printer model: frame and brackets
+ Entire AVALON v1 printer model: frame and brackets
 
+ Heavily inspired by Dylan Frick's overall design in Fusion.
+ Built by Orion Lawlor 2025-10 (Public Domain).
 */
 
-fullview=2; // 0: fast, skip pulleys;  1: complete; 2: bumps along spars; 3: holes along spars
+fullview=0; // 0: fast, skip pulleys;  1: complete; 2: bumps along spars; 3: holes along spars
 
 entire=1; // sets flag to suppress geometry in includes
 include <interfaces.scad>;
@@ -11,6 +13,7 @@ $fs=0.5; $fa=5; // coarser render
 
 include <Zroller.scad>;
 include <carrierX.scad>;
+include <chain_retain.scad>;
 
 include <AuroraSCAD/axes3D.scad>;
 include <AuroraSCAD/bevel.scad>;
@@ -117,9 +120,9 @@ rightX = 6*inch; // added chain on idler side
 leftXE = 0*inch; 
 rightXE = 0*inch; // extra spar on right side past idler
 
-frontY = 4*inch; // added chain on front (open side)
-frontYE = 4*inch;
-backY = 4*inch; // added chain on back (crossbar side)
+frontY = 5*inch; // added chain on front (open side)
+frontYE = 2*inch;
+backY = 5*inch; // added chain on back (crossbar side)
 backYE = 3*inch; // extra spar on back side
 backYC = -3*inch; // center of back crossbar relative to stepper
 
@@ -200,12 +203,16 @@ module sparsY() {
         translate(startY) rotate(rotateY) {
             scale(flipY) motion_stage("Y",chainY,backYE,frontYE);
             
-            // V rollers on each end of Y, to index on Z uprights
             for (end=[0,1]) translate([0,(end?chainY-frontY:+backY),0])
-            rotate([90,0,0]) rotate([0,end?-90:+90,0])
             {
-                Zroller_holder();
-                ZrollerC() Zroller3D();
+                // V rollers on each end of Y, to index on Z uprights
+                rotate([90,0,0]) rotate([0,end?-90:+90,0])
+                {
+                    Zroller_holder();
+                    ZrollerC() Zroller3D();
+                }
+                rotate([0,90,0]) scale([-1,end?+1:-1,1]) translate([0,1*inch,0])
+                    Zchain_holder();
             }
         }
    
@@ -213,7 +220,7 @@ module sparsY() {
     //  it's a spot for diagonals to hold squareness,
     //  also a good place for electronics boxes
     overhang=2*inch;
-    mirrorY()
+    //mirrorY() //<- crossbar kinda gets in the way of tool wiring and connections (like cleaning bucket)
     translate(startY+[-overhang,backYC,-sparOD]) rotate([0,0,-90]) make_spar("Ycross",travelX+2*overhang);
 }
 
@@ -222,7 +229,7 @@ module sparsX() {
     translate(startX) rotate(rotateX) {
         scale(flipX) motion_stage("X",chainX,leftXE,rightXE);
         
-        for (end=[0,1]) translate([0,(end?chainX-rightX:+leftX),0])
+        for (end=[0,1]) translate([0,(end?+leftX:chainX-rightX),0])
             scale([1,end?-1:+1,1])
             rotate([90,0,0]) rotate([0,0,90]) // move so Y+ is along the spar
             { // +Z is down the spar, add brackets for rollers
@@ -253,17 +260,47 @@ module sparsT() {
         }
 }
 
+// Text labels to illustrate parts of the printer
+module text_labels() {
+    sz=100;
+    textRGB=[0,0,0];
+    color(textRGB) {
+        linear_extrude(height=1) {
+            translate([-travelX/2,-travelY/2,0]) 
+                text("+X -> ",size=sz);
+            translate([-travelX/2,-travelY/2+200,0]) rotate([0,0,90])
+                text("+Y -> ",size=sz);
+            
+            translate([travelX/2+300,0,0]) rotate([0,0,90]) 
+                text("Forklift Access",size=sz,halign="center",valign="center");
+            translate([0,0,0]) rotate([0,0,90]) 
+                text("Printbed",size=sz,halign="center",valign="center");
+        }
+        
+        translate([0,travelY/2,travelZ/2]) rotate([90,0,0]) 
+            linear_extrude(height=1) 
+                text("Tool Rack",size=sz,halign="center",valign="center");
+    }
+}
+
+// Draw the entire printer frame, with printhead at this position.
+// (XYZ gcode location)
+module demo_entire(position=[20*inch,40*inch,30*inch])
+{
+    H = [-travelX/2, -travelY/2, 0] + position;
+    sparsZ();
+    translate([0,0,H[2]]) sparsY();
+    translate([0,H[1],H[2]]) sparsX();
+    //translate(H) toolhead();
+
+    sparsT();
+}
+
 //make_spar();
 //chain_drive();
+//sparsZ();
 
-// Current XYZ gcode location that the print head has moved to
-position=[20*inch,40*inch,30*inch];
+demo_entire();
 
-
-sparsZ();
-translate([0,0,position[2]]) sparsY();
-translate([0,-travelY/2+position[1],position[2]]) sparsX();
-
-sparsT();
-
+text_labels();
 
