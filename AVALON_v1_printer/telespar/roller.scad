@@ -1,5 +1,10 @@
 /*
- Telespar 2" tubing roller CAD
+ Telespar 2" tubing roller CAD.
+
+ This plastic roller directly rolls on the spars.
+
+ This approach didn't seem t work as well as directly rolling steel bearings
+ on the steel spars--a plastic roller's sides break off, and surfaces wear.
  
  Dr. Orion Lawlor, lawlor@alaska.edu, 2025-09-29 (Public Domain)
 */

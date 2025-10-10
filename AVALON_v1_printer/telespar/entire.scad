@@ -11,8 +11,8 @@ entire=1; // sets flag to suppress geometry in includes
 include <interfaces.scad>;
 $fs=0.5; $fa=5; // coarser render
 
-include <Zroller.scad>;
-include <carrierX.scad>;
+include <Zroller_mini.scad>;
+include <Yroller.scad>;
 include <chain_retain.scad>;
 
 include <AuroraSCAD/axes3D.scad>;
@@ -233,10 +233,10 @@ module sparsX() {
             scale([1,end?-1:+1,1])
             rotate([90,0,0]) rotate([0,0,90]) // move so Y+ is along the spar
             { // +Z is down the spar, add brackets for rollers
-                translate([0,0,-sparOD/2-carrierXZ-carrierEdge])
-                    carrierX(); 
+                translate([0,0,-sparOD/2-YrollerZ-carrierEdge])
+                    Yroller(); 
                 translate([0,0,+sparOD/2+carrierEdge])
-                    carrierXsupport();
+                    Yrollersupport();
             }
     }
 }

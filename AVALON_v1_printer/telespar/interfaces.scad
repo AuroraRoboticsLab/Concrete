@@ -36,10 +36,10 @@ sparbolt=3/8*inch+0.5; // diameter of bolts going through spar
 rollerR = 9/16/2*inch; // rolling radius of rollers (bare steel) on top of spar
 rollerOD = 40; // clearance diameter of outside of roller flanges
 
-ZrollerZ = 1.0*inch; // width of roller
-ZrollerMD = 1.5*inch; // maximum diameter of roller
+ZrollerZ = 0.75*inch; // width of roller
+ZrollerMD = 1.2*inch; // maximum diameter of roller
 ZrollerDX = 1.0*inch; // shift from surface of spar to surface of next spar
-ZrollerSX = 1.75*inch; // shift from center of spar to center of Z roller 
+ZrollerSX = 1.7*inch; // shift from center of spar to center of Z roller 
 Zroller_bolt=3/8*inch; // axle bolt
 
 // Centerline of chain circuit, relative to spar mounting bolt
