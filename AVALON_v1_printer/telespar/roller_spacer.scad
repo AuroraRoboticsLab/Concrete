@@ -3,11 +3,6 @@
 */
 include <interfaces.scad>;
 
-bearingID=3/8*inch+0.4; // space for bolt
-bearingOD=9/16*inch+0.25; // cavity for bearing (with clearance)
-bearingZ=3/8*inch+0.5; // height of bearing
-
-
 tubeZ = sparOD - 2*bearingZ;
 tubeID = sparbolt+0.5;
 tubeOD = bearingOD - 1.0;

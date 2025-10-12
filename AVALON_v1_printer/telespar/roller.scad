@@ -1,5 +1,5 @@
 /*
- Telespar 2" tubing roller CAD.
+ Telespar 2" tubing roller CAD - NOT USED IN PRINTER
 
  This plastic roller directly rolls on the spars.
 
@@ -15,19 +15,6 @@ flangeW=3.0; // thickness of guards
 flangeA=3; // angle of guards (degrees)
 
 rollerW=1.55; // wall thickness of roller plastic
-
-/*
-// Roller bearing: 5/16" ID, SCE55 needle bearing
-//  Similar to https://www.amazon.com/dp/B08J3KZ9WW?th=1
-bearingID=5/16*inch+0.4; // space for bolt
-bearingOD=1/2*inch+0.25; // cavity for bearing (with clearance)
-bearingZ=5/16*inch+0.5; // height of bearing
-*/
-
-// Roller bearing: 3/8" ID, SCE66, https://www.amazon.com/dp/B08J3QR52C?th=1
-bearingID=3/8*inch+0.4; // space for bolt
-bearingOD=9/16*inch+0.25; // cavity for bearing (with clearance)
-bearingZ=3/8*inch+0.5; // height of bearing
 
 bearingStickout=1; // bearing protrudes from part this far
 

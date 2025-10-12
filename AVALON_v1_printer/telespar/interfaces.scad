@@ -33,9 +33,17 @@ module spar2Dbolts(enlarge=0) {
 
 sparbolt=3/8*inch+0.5; // diameter of bolts going through spar
 
+
+// Roller bearing: 3/8" ID, SCE66, https://www.amazon.com/dp/B08J3QR52C?th=1
+bearingID=3/8*inch+0.4; // space for bolt
+bearingOD=9/16*inch+0.25; // outside diameter of roller bearing
+bearingZ=3/8*inch+0.5; // height of roller bearing along bolt
+
+
 rollerR = 9/16/2*inch; // rolling radius of rollers (bare steel) on top of spar
 rollerOD = 40; // clearance diameter of outside of roller flanges
 
+// Z axis diagonal rollers:
 ZrollerZ = 0.75*inch; // width of roller
 ZrollerMD = 1.2*inch; // maximum diameter of roller
 ZrollerDX = 1.0*inch; // shift from surface of spar to surface of next spar
@@ -85,5 +93,42 @@ module chain_retain_holes(depth=0.4*inch) {
     for (r=[0.5:chain_retainN]) translate([0,r*chain_retainDY])
         rotate([0,90,0]) cylinder(d=chain_retainhole,h=2*depth,center=true);
 }
+
+// Plate that retains the chain.  Chain at origin, facing along +Y.  Plate extruded along +Z.
+module chain_retain_plate3D(extraZ=0)
+{
+    difference() {
+        linear_extrude(height=chain_thickness+extraZ,convexity=4,center=true)
+            chain_retain2D()
+                children();
+        chain_retain_holes();
+    }
+}
+
+
+// Load cell measures downward force on tool. 
+//  Can be used as a simple scale, to detect mechanical contact, or sense tool pickup
+// Example supplier: https://www.amazon.com/dp/B0CRDG24R8
+loadcellSZ=[0.5*inch+0.3, 80+0.5, 0.5*inch+0.3];
+loadcellBDY=7.5; // bolt delta-Y (space from center to bolts on each side)
+loadcellSDY=55; // side delta-Y (space between bolt groups)
+
+
+
+
+// Symmetry around X axis
+module mirrorX() {
+    children();
+    scale([-1,1,1]) children();
+}
+// Symmetry around Y axis
+module mirrorY() {
+    children();
+    scale([1,-1,1]) children();
+}
+
+
+
+
 
 

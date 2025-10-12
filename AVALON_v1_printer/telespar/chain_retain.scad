@@ -45,17 +45,6 @@ module retain_bolt(total_len, thread_len=1.5*inch, extra_len=1/4*inch)
     
 }
 
-// Plate that retains the chain.  Chain at origin, facing along +Y
-module retain_plate3D(extraZ=0)
-{
-    difference() {
-        linear_extrude(height=chain_thickness+extraZ,convexity=4,center=true)
-            chain_retain2D()
-                children();
-        chain_retain_holes();
-    }
-}
-
 // Cross section of Z axis chain holder
 module Zchain_holder2D() {
     round=12; // round inside corners, for strength
@@ -92,7 +81,7 @@ module Zchain_holder() {
             
             // Plate connecting to chain
             plateC=[-32,-Zchainedge[2]-5]; plateZ=[32,10]; // extra behind plate
-            translate(Zchainedge) rotate([90,0,0]) retain_plate3D()
+            translate(Zchainedge) rotate([90,0,0]) chain_retain_plate3D()
                 translate(plateC) square(plateZ);
             
             // Chamfers to blend holder-plate transition
@@ -113,7 +102,7 @@ module Zchain_holder() {
                 }
                 
                 // Trim to dimensions of plate
-                translate(Zchainedge) rotate([90,0,0]) retain_plate3D(100.0)
+                translate(Zchainedge) rotate([90,0,0]) chain_retain_plate3D(100.0)
                     translate(plateC) square(plateZ);
             }
         }

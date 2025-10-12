@@ -11,8 +11,9 @@ entire=1; // sets flag to suppress geometry in includes
 include <interfaces.scad>;
 $fs=0.5; $fa=5; // coarser render
 
-include <Zroller_mini.scad>;
+include <Xroller.scad>;
 include <Yroller.scad>;
+include <Zroller_mini.scad>;
 include <chain_retain.scad>;
 
 include <AuroraSCAD/axes3D.scad>;
@@ -149,17 +150,6 @@ rotateZ = [90,0,0];  flipZ=[1,1,1];  startZ = [-travelX/2,-travelY/2,0]+[-3*inch
 rotateY = [0,-90,0];  flipY=[1,1,1];  startY = [-travelX/2,-travelY/2,0]+[0,-backY,0];
 rotateX = [0,90,-90]; flipX=[1,1,-1];  startX = [-travelX/2,0,0]+[-leftX,0,sparOD+sparC];
 
-// Symmetry around X axis
-module mirrorX() {
-    children();
-    scale([-1,1,1]) children();
-}
-// Symmetry around Y axis
-module mirrorY() {
-    children();
-    scale([1,-1,1]) children();
-}
-
 
 /* Create a spar and chain drive with this length (center of stepper to center of idler).
    Origin is at the stepper, spar extends along +Y axis. */
@@ -291,7 +281,7 @@ module demo_entire(position=[20*inch,40*inch,30*inch])
     sparsZ();
     translate([0,0,H[2]]) sparsY();
     translate([0,H[1],H[2]]) sparsX();
-    //translate(H) toolhead();
+    translate(H + [0,0,sparOD+sparC]) Xroller_demo(spar=0);
 
     sparsT();
 }
