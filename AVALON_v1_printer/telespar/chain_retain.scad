@@ -1,6 +1,7 @@
 /*
  Bolt-on structures that hold on to #40 roller chain.
  
+ One of these on each end of the Y axis spars grabs its Z chain.
  
 */
 include <interfaces.scad>;

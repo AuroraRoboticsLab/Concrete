@@ -32,6 +32,7 @@ module spar2Dbolts(enlarge=0) {
 }
 
 sparbolt=3/8*inch+0.5; // diameter of bolts going through spar
+sparbolt_pitch=1/16*inch; // thread spacing of spar bolt
 
 
 // Roller bearing: 3/8" ID, SCE66, https://www.amazon.com/dp/B08J3QR52C?th=1

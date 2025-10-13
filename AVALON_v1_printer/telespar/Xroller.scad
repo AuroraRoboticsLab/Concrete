@@ -1,13 +1,40 @@
 /*
 The X roller slides along the X axis spar, and holds the actual printing tool.
 
+Parts needed for fit out:
+    - Four printed parts below:
+        - frontframe attaches to everything else
+        - backframe holds the front onto the spar
+        - bullet toolholder holds the tool
+        - toggle aligns the frontframe and bullet (and optional electrical hookups?)
+    The printed parts need to be cleaned up by drilling out the 5mm shaft holes to true 5mm, and tapping at least the 3/8" holes to true 3/8". 
+    
+    - 20kgf load cell at bottom, connects frontframe and bullet
+        - 2x 4mm x 20mm screws, used on bullet side of load cell
+        - 2x 5mm x 20mm screws, used on frontframe side of load cell
+    
+    - Four large rollers:
+        - 2x 3/8" x 4" bolts, which have 2.8 inches of smooth shaft for the top of spar rollers
+        - 2x 3/8" x 3.5" bolts, which have 2.3 inches of smooth shaft for the bottom of spar rollers
+        
+        - 8x 3/8" ID needle bearings, type SCE66, to hold the tool loads
+        - 4x roller_spacers, to space the rollers on the bolts
+        - 8x 3/8" washers, stackup is frame - washer - bearing - spacer - bearing - washer - frame - nut
+        - 4x nylock nuts to hold the roller bolts in place
+    
+    - 8x 625 bearings, used to constrain Y motion
+    - 6x 5mm diameter by 50mm length rods, used to hold the toggle.  These should have gently beveled ends to allow them to slide into place.
+
+    - 2x 3/8" diameter x 4" length all-thread bolts to connect front and back plates diagonally. 
+
+
 Orion Lawlor, lawlor@alaska.edu, 2025-10-10 (Public Domain)
 */
 
 include <interfaces.scad>
 
 includebullet=1; // allow bullet to be included
-include <bullet.scad> // tool pickup
+include <tool_bullet.scad> // tool pickup
 
 include <BOSL2/std.scad>
 include <BOSL2/threading.scad>
@@ -233,7 +260,7 @@ module Xroller_backframe3D() {
         
         // Cut threads that match the front plate for diagonal bolts:
         if (is_undef(entire)) Xroller_diagonalboltsC() translate([0,0,3*inch])
-            threaded_rod(d=sparbolt,pitch=1/16*inch,h=1.5*inch,anchor=BOTTOM);
+            threaded_rod(d=sparbolt,pitch=sparbolt_pitch,h=1.5*inch,anchor=BOTTOM);
         
         // Trim bottom flat
         translate([0,200-plateYS,0]) cube([400,400,400],center=true);
@@ -499,7 +526,7 @@ module Xroller_frontframe3D() {
             cylinder(d=toggle_pivotID,h=100,center=true);
         
         if (is_undef(entire)) Xroller_diagonalboltsC()
-            threaded_rod(d=sparbolt,pitch=1/16*inch,h=1*inch,anchor=BOTTOM);
+            threaded_rod(d=sparbolt,pitch=sparbolt_pitch,h=1*inch,anchor=BOTTOM);
         
         // Trim bottom flat
         translate([0,-200+plateYS,0]) cube([400,400,400],center=true);
@@ -602,14 +629,14 @@ module Xroller_demo(spar=1) {
 
 if (is_undef(entire)) 
 {
-    //Xroller_demo();
+    Xroller_demo();
     
     //printable_frontframe();
     //printable_backframe();
     
     //printable_toggle();
     
-    printable_bullet();
+    //printable_bullet();
 }
 
 

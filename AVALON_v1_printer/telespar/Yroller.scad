@@ -95,7 +95,7 @@ module Yroller(crossbolt=1, baseplate=1, hole=rollerboltT, height=YrollerZ)
         // Cut in threads
         for (side=[-1,+1]) translate([side*rollerX,rollerY])
         {
-            threaded_rod(d=3/8*inch-0.2,pitch=1/16*inch,h=height+5,anchor=BOTTOM);
+            threaded_rod(d=sparbolt,pitch=sparbolt_pitch,h=height+5,anchor=BOTTOM);
             if (crossbolt) 
                 translate([0,0,height+0.01]) scale([1,1,-1])
                     cylinder(d1=sparbolt,d2=5/16*inch,h=5); // taper 

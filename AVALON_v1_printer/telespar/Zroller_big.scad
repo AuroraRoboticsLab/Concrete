@@ -120,7 +120,7 @@ module Zroller_holder() {
             OD=3/8*inch-0.1;
             len=1.5*inch;
             if (is_undef(entire))
-                threaded_rod(d=OD,pitch=1/16*inch,length=len,anchor=BOTTOM);
+                threaded_rod(d=OD,pitch=sparbolt_pitch,length=len,anchor=BOTTOM);
             else // faster simpler version
                 cylinder(d=OD,h=len);
         }

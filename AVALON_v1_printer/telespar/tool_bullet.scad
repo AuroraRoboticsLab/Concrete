@@ -1,5 +1,7 @@
 /*
- Hook for picking up tools with 2" telespar-style punched pipe.
+ Bullet-shaped hook for the print head to pick up tools 
+ that have 2" telespar-style punched pipe.
+
  Shaped like a big square bullet, with a rounded coarse align taper on top.
  
  Gravity retains most tools, some will require an additional retaining pin.  
