@@ -76,8 +76,8 @@ XchainDX = XrollerDX+20; // start points of chain retainer
 
 // Start of plastic from spar centerline
 plateYS = sparOD/2+2;
-plateYF = 5.0; // floor thickness of plate in front
-plateYB = 4.0; // floor thickness of back plate
+plateYF = 5.0; // floor thickness of plate in front (also gets a bunch of ribs and such)
+plateYB = 6.0; // floor thickness of back plate
 
 // List of 3D centerpoints for X roller centers
 Xroller_center_points = [
@@ -240,6 +240,13 @@ module sliceXZ(atY) {
     projection(cut=true) translate([0,0,atY]) rotate([-90,0,0]) children();
 }
 
+// Back frame electronics box mount holes
+module Xroller_backframe_EmountC() {
+    mirrorX() mirrorZ() translate([-1*inch,-plateYS-plateYB+0.01,-1.25*inch])
+        rotate([90,0,0])
+            children();
+}
+
 // 3D shape of back frame
 module Xroller_backframe3D() {
     difference() {
@@ -249,8 +256,22 @@ module Xroller_backframe3D() {
                     Xroller_baseframe2D(enlarge=XrollerW);
                     sliceXZ(-plateYS) Xroller_diagonalboltsW();
                 }
+            // Heavier plate on top (avoid weakness around bearing rods
+            roundIn=3;
+            Xroller_extrudeXZ(-plateYS-2*plateYB,2*plateYB) 
+                Xroller_frameround2D() 
+                offset(r=+roundIn) offset(r=-roundIn)
+                difference() {
+                    Xroller_baseframe2D(enlarge=XrollerW);
+                    translate([0,22-200]) square([2*XrollerDX,400],center=true);
+                    translate([0,-22-200]) square([400,400],center=true);
+                }
+            
             Xroller_bearing_rod(-1,XrollerW);
             Xroller_diagonalboltsW();
+            
+            Xroller_backframe_EmountC() 
+                scale([1.5,1,1]) cylinder(d1=15,d2=8,h=10);
         }
         
         Xroller_bearing_rod(-1,0,50);
@@ -261,6 +282,9 @@ module Xroller_backframe3D() {
         // Cut threads that match the front plate for diagonal bolts:
         if (is_undef(entire)) Xroller_diagonalboltsC() translate([0,0,3*inch])
             threaded_rod(d=sparbolt,pitch=sparbolt_pitch,h=1.5*inch,anchor=BOTTOM);
+        
+        // Tap these electronics box mount points for M5 screws
+        Xroller_backframe_EmountC() cylinder(d=4.4,h=50,center=true);
         
         // Trim bottom flat
         translate([0,200-plateYS,0]) cube([400,400,400],center=true);
@@ -629,10 +653,10 @@ module Xroller_demo(spar=1) {
 
 if (is_undef(entire)) 
 {
-    Xroller_demo();
+    //Xroller_demo();
     
     //printable_frontframe();
-    //printable_backframe();
+    printable_backframe();
     
     //printable_toggle();
     

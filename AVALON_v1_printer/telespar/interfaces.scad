@@ -8,7 +8,7 @@ $fs=0.1; $fa=2; // smooth finish
 
 inch=25.4; // file units are mm
 
-sparOD=2.0*inch+0.4; // spar size (plus some clearance)
+sparOD=2.0*inch+0.2; // spar size (plus some clearance)
 sparR=3.0; // rounding on corners
 
 module spar2D(enlarge=0,round=1) {
@@ -31,7 +31,7 @@ module spar2Dbolts(enlarge=0) {
     
 }
 
-sparbolt=3/8*inch+0.5; // diameter of bolts going through spar
+sparbolt=3/8*inch+0.2; // diameter of bolts going through spar
 sparbolt_pitch=1/16*inch; // thread spacing of spar bolt
 
 
@@ -127,7 +127,11 @@ module mirrorY() {
     children();
     scale([1,-1,1]) children();
 }
-
+// Symmetry around Z axis
+module mirrorZ() {
+    children();
+    scale([1,1,-1]) children();
+}
 
 
 
