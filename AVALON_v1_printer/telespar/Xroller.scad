@@ -51,7 +51,7 @@ loadcellC = [0,plateYS+loadcellSZ[1]/2,-80];
 module Xroller_bottomframe2D(enlarge=0,Xshift=0,Zshift=0) {
     offset(r=+enlarge) hull()
     {
-        mirrorX() for (p=Xroller_center_points) 
+        mirrorX() for (p=rframe_center_points) 
             translate(projectY(p)+[Xshift,(p[2]>0?1:-1)*Zshift])
                 circle(d=sparbolt);
         translate(projectY(loadcellC)+[0,-Zshift]) square(projectY(loadcellSZ),center=true);
@@ -69,7 +69,7 @@ module Xroller_diagonalboltsC()
 module Xroller_diagonalboltsW()
 {
     Xroller_diagonalboltsC()
-        cylinder(d=sparbolt + 2*XrollerW,h=4.1*inch);
+        cylinder(d=sparbolt + 2*rframeW,h=4.1*inch);
 }
 
 // Back frame electronics box mount holes
@@ -83,23 +83,16 @@ module Xroller_backframe_EmountC() {
 module Xroller_backframe3D() {
     difference() {
         union() {
-            Xroller_extrudeXZ(-plateYS-plateYB,plateYB) 
-                Xroller_frameround2D() {
-                    Xroller_baseframe2D(enlarge=XrollerW);
+            rframe_extrudeXZ(-plateYS-plateYB,plateYB) 
+                rframe_frameround2D() {
+                    rframe_baseframe2D(enlarge=rframeW);
                     sliceXZ(-plateYS) Xroller_diagonalboltsW();
                 }
             // Heavier plate on top (avoid weakness around bearing rods
-            roundIn=3;
-            Xroller_extrudeXZ(-plateYS-2*plateYB,2*plateYB) 
-                Xroller_frameround2D() 
-                offset(r=+roundIn) offset(r=-roundIn)
-                difference() {
-                    Xroller_baseframe2D(enlarge=XrollerW);
-                    translate([0,22-200]) square([2*XrollerDX,400],center=true);
-                    translate([0,-22-200]) square([400,400],center=true);
-                }
+            rframe_extrudeXZ(-plateYS-2*plateYB,2*plateYB) 
+                rframe_heavyplate();
             
-            Xroller_bearing_rod(-1,XrollerW);
+            rframe_bearing_rod(-1,rframeW);
             
             
             Xroller_diagonalboltsW();
@@ -108,10 +101,10 @@ module Xroller_backframe3D() {
                 scale([1.5,1,1]) cylinder(d1=15,d2=8,h=10);
         }
         
-        Xroller_bearing_rod(-1,0,50);
-        Xroller_bearing_space();
+        rframe_bearing_rod(-1,0,50);
+        rframe_bearing_space();
         
-        Xroller_bolts();
+        rframe_bolts();
         
         // Cut threads that match the front plate for diagonal bolts:
         if (is_undef(entire)) Xroller_diagonalboltsC() translate([0,0,3*inch])
@@ -125,20 +118,6 @@ module Xroller_backframe3D() {
     }
 }
 
-// Put children at chain attachment points
-module Xroller_chain_attachC() {
-    mirrorX() translate([XchainDX,0,0])
-        translate(XchainC) 
-            rotate([90,0,0]) rotate([0,0,90-10])
-                children();
-}
-
-// Add 2D circle to chain attachment behind our bolt
-module Xroller_chain_bolt2D() {
-    // Hull out to our bolt itself
-    translate([-15,chain_retainN*chain_retainDY])
-        circle(d=sparbolt+2*XrollerW);
-}
 
 // Space around load cell
 module Xroller_loadcell(enlarge=0,raiseZ=0)
@@ -233,8 +212,8 @@ module Xroller_frontbars2D() {
     // Thinner crossbars going to bolts
     mirrorX()
     for (target=[
-            [-XrollerDX,0], // horizontal crossbar
-            [-XrollerDX,+sparOD+20] // diagonals up
+            [-rframeDX,0], // horizontal crossbar
+            [-rframeDX,+sparOD+20] // diagonals up
         ])
     hull() for (p=[joint,joint+target]) translate(p) circle(d=crossW);
     
@@ -242,66 +221,66 @@ module Xroller_frontbars2D() {
 
 // 3D shape of front of frame, without holes
 module Xroller_frontframe3D_solid() {
-    Xroller_extrudeXZ(+plateYS,plateYF)
-    Xroller_frameround2D()
+    rframe_extrudeXZ(+plateYS,plateYF)
+    rframe_frameround2D()
     {
         // Basic top
         difference() {
-            Xroller_baseframe2D(+XrollerW,hsides=0);
+            rframe_baseframe2D(+rframeW,hsides=0);
             // Trim tops
-            translate([0,200+XrollerDZ+sparbolt/2+XrollerW]) square([400,400],center=true);
+            translate([0,200+rframeDZ+sparbolt/2+rframeW]) square([400,400],center=true);
         }
         
         // Bottom and hole
         difference() {
             union() {
-                Xroller_bottomframe2D(+XrollerW);
+                Xroller_bottomframe2D(+rframeW);
                 sliceXZ(+plateYS) Xroller_diagonalboltsW();
             }
             
             // Carve interior hole
-            hull() Xroller_bottomframe2D(-XrollerS-XrollerW);
+            hull() Xroller_bottomframe2D(-rframeS-rframeW);
         }
     }
     
-    ribW=XrollerW;
+    ribW=rframeW;
     ribZ=10; // height of ribs and frontbars over baseplate
     
     // Rib and frontbars around inside
     difference() {
         floor=2; // material remaining on bottom (for torsion stiffness)
-        in=-XrollerS-XrollerW; // inside edge
+        in=-rframeS-rframeW; // inside edge
         Xshift=8; Zshift=6; // adjusts bottomframe to hit parts that need support
         roundIn=5;
         difference() {
             // Outside of ribs
             roundOut=5;
-            Xroller_extrudeXZ(+plateYS,+plateYF+ribZ)
+            rframe_extrudeXZ(+plateYS,+plateYF+ribZ)
                 offset(r=-roundIn) offset(r=+roundIn)
                 offset(r=+roundOut) offset(r=-roundOut) 
                 {
                     Xroller_bottomframe2D(in+ribW,Xshift,Zshift);
                     // Taper up to top bolts
-                    mirrorX() translate([-XrollerDX+16,XrollerDZ-8])
+                    mirrorX() translate([-rframeDX+16,rframeDZ-8])
                         circle(r=8);
                 }
             
             // Inside holes in ribs
             difference() {
-                Xroller_extrudeXZ(+plateYS+floor,+plateYF+ribZ)
+                rframe_extrudeXZ(+plateYS+floor,+plateYF+ribZ)
                     offset(r=+roundIn) offset(r=-roundIn)
                         difference() {
                             Xroller_bottomframe2D(in,Xshift+2,Zshift);
                             Xroller_frontbars2D();
                         }
                 // Don't remove material around the bearings
-                Xroller_bearing_space(ribW);
+                rframe_bearing_space(ribW);
             }
         }
         // Carve gap in the thick center block
         walls=4;
         difference() {
-            Xroller_extrudeXZbevel(+plateYS+floor,+plateYF+ribZ-2*floor,bevel=floor)
+            rframe_extrudeXZbevel(+plateYS+floor,+plateYF+ribZ-2*floor,bevel=floor)
                 offset(r=+roundIn) offset(r=-roundIn-walls)
                     intersection() {
                         Xroller_bottomframe2D(in,Xshift,Zshift);
@@ -313,7 +292,7 @@ module Xroller_frontframe3D_solid() {
     }
     // Extra material around the load cell
     intersection() {
-        Xroller_loadcell(XrollerW,5);
+        Xroller_loadcell(rframeW,5);
         difference() {
             // Limit to back side
             translate(loadcellC+[0,-loadcellSDY/2,0])
@@ -328,36 +307,36 @@ module Xroller_frontframe3D_solid() {
     Xroller_diagonalboltsW();
     
     // Meat around little rollers
-    Xroller_bearing_rod(+1,XrollerW);
+    rframe_bearing_rod(+1,rframeW);
     
     // Chain attach plates
-    Xroller_chain_attachC()
-        chain_retain_plate3D() Xroller_chain_bolt2D();
+    rframe_chain_attachC()
+        chain_retain_plate3D() rframe_chain_bolt2D();
     
     // Tapered transitions out of chain attach plates.
     //  These are just a cone, intersected with an extended extrusions
     taper=13;
-    OD = sparbolthex+2*XrollerW;
+    OD = sparbolthex+2*rframeW;
     // Taper frontside
     intersection() {
-        Xroller_extrudeXZ(-100,200)
-            Xroller_bottomframe2D(+XrollerW);
+        rframe_extrudeXZ(-100,200)
+            Xroller_bottomframe2D(+rframeW);
         
-        mirrorX() translate(Xroller_center_points[0]+[0,plateYS,0])
+        mirrorX() translate(rframe_center_points[0]+[0,plateYS,0])
             rotate([-90,0,0])
                 cylinder(d1=OD+2*taper,d2=OD,h=taper);
     }
     // Taper backside
     intersection() {
         round=5;
-        Xroller_chain_attachC()
+        rframe_chain_attachC()
             linear_extrude(height=200,center=true,convexity=6)
             difference() {                    
-                chain_retain2D() Xroller_chain_bolt2D();
+                chain_retain2D() rframe_chain_bolt2D();
                 square([0.55*inch,100],center=true); // chain outer plates
             }
         taper=7.5;
-        mirrorX() translate(Xroller_center_points[0]+[0,plateYS,0])
+        mirrorX() translate(rframe_center_points[0]+[0,plateYS,0])
             rotate([-90,0,0])
                 cylinder(d1=OD,d2=OD+taper,h=taper);
     }
@@ -370,13 +349,13 @@ module Xroller_frontframe3D() {
     difference() {
         Xroller_frontframe3D_solid();
 
-        Xroller_bearing_rod(+1,0,50);
-        Xroller_bearing_space();
+        rframe_bearing_rod(+1,0,50);
+        rframe_bearing_space();
         // Space to insert bearings from below
         translate([0,-4,0])
             bearingY_centers() bearing3D(bearingY,clearance=1.5,center=true);
         
-        Xroller_bolts();
+        rframe_bolts();
         
         Xroller_loadcell();
         
@@ -429,7 +408,7 @@ module Xroller_bullet_solid()
             union() {
                 translate(toggleC) bevelcube(toggleSZ,center=true,bevel=toggleB);
 
-                Xroller_loadcell(XrollerW);
+                Xroller_loadcell(rframeW);
             }
             // Chop everything off flush with tool face
             translate(toolO + [0,-200-sparIR,0]) cube([400,400,400],center=true);
@@ -472,9 +451,9 @@ module Xroller_demo(spar=1) {
     Xroller_toggle3D();
     Xroller_bullet();
     
-    if (spar) #rotate(Xroller_sparR) linear_extrude(height=300,center=true) spar2D();
+    if (spar) #rotate(rframe_sparR) linear_extrude(height=300,center=true) spar2D();
     #bearingY_centers() bearing3D(bearingY,center=true);
-    #Xroller_bolts();
+    #rframe_bolts();
     #Xroller_diagonalboltsC() cylinder(d=sparbolt,h=4*inch);
     #for (end=toggle_pivots) translate(end) rotate([0,90,0])
         cylinder(d=toggle_pivotID,h=50,center=true);

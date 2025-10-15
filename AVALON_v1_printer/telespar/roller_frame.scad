@@ -1,7 +1,7 @@
 /*
  This roller frame slides along a spar, and there are copies:
    - Yroller: holds each end of the X spar onto the Y spar
-   - Xroller: holds the tool onto the X spar
+   - rframe: holds the tool onto the X spar
  
  It's designed to constrain motion on all axes except along the spar.
 
@@ -34,16 +34,35 @@ bearingYDY = sparOD/2+bearingOD(bearingY)/2; // position from spar to center of 
 bearingYDZ = 16; // radius in Z from spar center to center of bearing
 
 // Top and bottom rollers constrain Z motion
-XrollerDX = 60; // distance of roller bolts from centerline
+rframeDX = 60; // distance of roller bolts from centerline
 
-XrollerDZ_preload = 0.2; // take up slop in bolt holes, cling to spar more strongly
-XrollerDZ = sparOD/2 + bearingOD/2 - XrollerDZ_preload; // distance from spar center to bolt center as printed
-Xroller_sparR = [0,90,0]; // rotate down to the spar orientation
+rframeDZ_preload = 0.2; // take up slop in bolt holes, cling to spar more strongly
+rframeDZ = sparOD/2 + bearingOD/2 - rframeDZ_preload; // distance from spar center to bolt center as printed
+rframe_sparR = [0,90,0]; // rotate down to the spar orientation
+
+
+rframeW=2.4; // wall thickness around main components
+rframeS=sparbolt; // size of main walls
+
 
 // Center of chain that we grab above us
 XchainC = [+1.5*inch/2,sparOD/2+chainC[2],-chainC[0]-chain_sprocketR];
-XchainDX = XrollerDX+20; // start points of chain retainer
+XchainDX = rframeDX+20; // start points of chain retainer
 
+// Put children at chain attachment points
+module rframe_chain_attachC() {
+    mirrorX() translate([XchainDX,0,0])
+        translate(XchainC) 
+            rotate([90,0,0]) rotate([0,0,90-10])
+                children();
+}
+
+// Add 2D circle to chain attachment behind our bolt
+module rframe_chain_bolt2D() {
+    // Hull out to our bolt itself
+    translate([-15,chain_retainN*chain_retainDY])
+        circle(d=sparbolt+2*rframeW);
+}
 
 
 // Start of plastic from spar centerline
@@ -51,10 +70,10 @@ plateYS = sparOD/2+2;
 plateYF = 5.0; // floor thickness of plate in front (also gets a bunch of ribs and such)
 plateYB = 6.0; // floor thickness of back plate
 
-// List of 3D centerpoints for X roller centers
-Xroller_center_points = [
-    [-XrollerDX,0,+XrollerDZ],
-    [-XrollerDX,0,-XrollerDZ]
+// List of 3D centerpoints for roller bolt centers
+rframe_center_points = [
+    [-rframeDX,0,+rframeDZ],
+    [-rframeDX,0,-rframeDZ]
 ];
 // List of 3D centerpoints for Y constaint bearings
 bearingY_center_points = [
@@ -64,15 +83,15 @@ bearingY_center_points = [
 
 // Put children at the centers of the cross-spar roller bolts
 //   Only 2D
-module Xroller_centers() {
-    mirrorX() for (p=Xroller_center_points) translate(p)
+module rframe_centers() {
+    mirrorX() for (p=rframe_center_points) translate(p)
         rotate([90,0,0])
             children();
 }
 
 // Space for bolts holding sides together
-module Xroller_bolts() {
-    Xroller_centers() cylinder(d=sparbolt,h=sparOD+40,center=true);
+module rframe_bolts() {
+    rframe_centers() cylinder(d=sparbolt,h=sparOD+40,center=true);
 }
 
 // Put children at the centers of the Y constraint bearings
@@ -87,23 +106,23 @@ module bearingY_centers(frontback=[-1,+1]) {
 function projectY(p) = [p[0],p[2]];
 
 // 2D outline of basic roller frame, shared between front and back features
-module Xroller_baseframe2D(enlarge=0, hsides=1)
+module rframe_baseframe2D(enlarge=0, hsides=1)
 { 
     offset(r=+enlarge)
     {
         // Material around bolts
-        mirrorX() for (p=Xroller_center_points) translate(projectY(p))
+        mirrorX() for (p=rframe_center_points) translate(projectY(p))
             circle(d=sparbolthex);
     
         // Left and right upright sides
         mirrorX() hull()
-        for (p=Xroller_center_points) translate(projectY(p))
+        for (p=rframe_center_points) translate(projectY(p))
             circle(d=sparbolt);
         
         // Top and bottom sides
         if (hsides) {
             for (i=[0,1])
-            hull() mirrorX() translate(projectY(Xroller_center_points[i]))
+            hull() mirrorX() translate(projectY(rframe_center_points[i]))
                 circle(d=sparbolt);
         }
         
@@ -123,14 +142,14 @@ module Xroller_baseframe2D(enlarge=0, hsides=1)
 
 
 // 3D upright retaining rod, the bearings slide on here
-module Xroller_bearing_rod(side,enlarge=0,enlargeZ=0) {
+module rframe_bearing_rod(side,enlarge=0,enlargeZ=0) {
     mirrorX() 
         translate([bearingYDX,side*bearingYDY,-bearingYL/2])
             bevelcylinder(d=bearingYOD+2*enlarge,h=bearingYL+enlargeZ,bevel=0.7*enlarge);
 }
 
 // Space around bearing
-module Xroller_bearing_space(enlarge=0) {
+module rframe_bearing_space(enlarge=0) {
     bearingY_centers() 
     difference() {
         OD = bearingOD(bearingY);
@@ -149,11 +168,8 @@ module Xroller_bearing_space(enlarge=0) {
     }
 }
 
-XrollerW=2.4; // wall thickness around main components
-XrollerS=sparbolt; // size of main walls
-
 // Apply frame rounding to this 2D children
-module Xroller_frameround2D() 
+module rframe_frameround2D() 
 {
     roundinside=12;
     offset(r=-roundinside) offset(r=+roundinside)
@@ -169,7 +185,7 @@ module sliceXZ(atY) {
 
 // Extrude this 2D frame shape to this thickness, starting at this Y coord.
 //    Height extrudes in the +Y direction
-module Xroller_extrudeXZ(start,height) 
+module rframe_extrudeXZ(start,height) 
 {
     translate([0,start+height,0])
     rotate([90,0,0])
@@ -177,7 +193,7 @@ module Xroller_extrudeXZ(start,height)
         children();
 }
 // Bevelled version of above (only works for convex shapes)
-module Xroller_extrudeXZbevel(start,height,bevel) 
+module rframe_extrudeXZbevel(start,height,bevel) 
 {
     translate([0,start+height,0])
     rotate([90,0,0])
@@ -185,7 +201,22 @@ module Xroller_extrudeXZbevel(start,height,bevel)
         children();
 }
 
-
+// Heavier frame plate on one side
+module rframe_heavyplate(topslot=22, bottomtrim=-22, roundIn=3)
+{
+    rframe_frameround2D() 
+        offset(r=+roundIn) offset(r=-roundIn)
+        difference() {
+            union() {
+                difference() {
+                    rframe_baseframe2D(enlarge=rframeW);
+                    translate([0,topslot-200]) square([2*rframeDX,400],center=true);
+                }
+                children();
+            }
+            translate([0,bottomtrim-200]) square([400,400],center=true);
+        }
+}
 
 
 
