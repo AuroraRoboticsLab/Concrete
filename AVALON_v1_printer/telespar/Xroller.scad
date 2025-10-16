@@ -27,6 +27,11 @@ Parts needed for fit out:
 
     - 2x 3/8" diameter x 4" length all-thread bolts to connect front and back plates diagonally. 
 
+    
+ Coordinate system used in this file:
+   Z: up and down
+   Y: across spar, +Y toward tools
+   X: along spar
 
 Orion Lawlor, lawlor@alaska.edu, 2025-10-10 (Public Domain)
 */
@@ -38,13 +43,19 @@ include <tool_bullet.scad> // tool pickup
 
 
 
+// Start of plastic from spar centerline (X axis plate, distance along Y axis)
+plateXS = sparOD/2+2;
+plateXF = 5.0; // floor thickness of plate in front (also gets a bunch of ribs and such)
+plateXB = 6.0; // floor thickness of back plate
+
+
 
 // Origin of base of tool pickup (bullet)
 toolO = [0,4*inch,-1.5*inch];
 toolR = [90,0,0];
 
 // Center of load cell
-loadcellC = [0,plateYS+loadcellSZ[1]/2,-80];
+loadcellC = [0,plateXS+loadcellSZ[1]/2,-80];
 
 
 // 2D solid outline of bottom roller frame, including the load cell
@@ -74,7 +85,7 @@ module Xroller_diagonalboltsW()
 
 // Back frame electronics box mount holes
 module Xroller_backframe_EmountC() {
-    mirrorX() mirrorZ() translate([-1*inch,-plateYS-plateYB+0.01,-1.25*inch])
+    mirrorX() mirrorZ() translate([-1*inch,-plateXS-plateXB+0.01,-1.25*inch])
         rotate([90,0,0])
             children();
 }
@@ -83,16 +94,17 @@ module Xroller_backframe_EmountC() {
 module Xroller_backframe3D() {
     difference() {
         union() {
-            rframe_extrudeXZ(-plateYS-plateYB,plateYB) 
+            rframe_extrudeXZ(-plateXS-plateXB,plateXB) 
                 rframe_frameround2D() {
                     rframe_baseframe2D(enlarge=rframeW);
-                    sliceXZ(-plateYS) Xroller_diagonalboltsW();
+                    sliceXZ(-plateXS) Xroller_diagonalboltsW();
                 }
             // Heavier plate on top (avoid weakness around bearing rods
-            rframe_extrudeXZ(-plateYS-2*plateYB,2*plateYB) 
+            rframe_extrudeXZ(-plateXS-2*plateXB,2*plateXB) 
                 rframe_heavyplate();
             
-            rframe_bearing_rod(-1,rframeW);
+            translate([0,0,2]) //<- close gap on top, continuous part
+            rframe_bearing_retain(-1,rframeW,-plateXS-plateXB,extraZ=2);
             
             
             Xroller_diagonalboltsW();
@@ -101,7 +113,7 @@ module Xroller_backframe3D() {
                 scale([1.5,1,1]) cylinder(d1=15,d2=8,h=10);
         }
         
-        rframe_bearing_rod(-1,0,50);
+        rframe_bearing_rod(-1,0,50,exit=1);
         rframe_bearing_space();
         
         rframe_bolts();
@@ -114,7 +126,7 @@ module Xroller_backframe3D() {
         Xroller_backframe_EmountC() cylinder(d=4.4,h=50,center=true);
         
         // Trim bottom flat
-        translate([0,200-plateYS,0]) cube([400,400,400],center=true);
+        translate([0,200-plateXS,0]) cube([400,400,400],center=true);
     }
 }
 
@@ -139,7 +151,7 @@ module Xroller_loadcell(enlarge=0,raiseZ=0)
 // Toggle keeps the tool holder from moving in X or Y, but leaves it free to move in Z (so the load cell reads accurately)
 toggleIX = 30; // inside X width where it mates on both sides 
 toggleOX = toggleIX + 2*5; // X thickness including earplates
-toggle_plateC = [0,plateYS+10,toolO[2]-8]; // plate side center point
+toggle_plateC = [0,plateXS+10,toolO[2]-8]; // plate side center point
 toggle_toolC = toggle_plateC + [0,toolO[1]-toggle_plateC[1]-18,0]; // tool side center point
 toggle_pivots=[toggle_plateC,toggle_toolC]; // centers of both pivot points
 
@@ -221,21 +233,19 @@ module Xroller_frontbars2D() {
 
 // 3D shape of front of frame, without holes
 module Xroller_frontframe3D_solid() {
-    rframe_extrudeXZ(+plateYS,plateYF)
+    rframe_extrudeXZ(+plateXS,plateXF)
     rframe_frameround2D()
     {
         // Basic top
         difference() {
-            rframe_baseframe2D(+rframeW,hsides=0);
-            // Trim tops
-            translate([0,200+rframeDZ+sparbolt/2+rframeW]) square([400,400],center=true);
+            rframe_baseframe2D(+rframeW,hsides=0,trim=1);
         }
         
         // Bottom and hole
         difference() {
             union() {
                 Xroller_bottomframe2D(+rframeW);
-                sliceXZ(+plateYS) Xroller_diagonalboltsW();
+                sliceXZ(+plateXS) Xroller_diagonalboltsW();
             }
             
             // Carve interior hole
@@ -255,7 +265,7 @@ module Xroller_frontframe3D_solid() {
         difference() {
             // Outside of ribs
             roundOut=5;
-            rframe_extrudeXZ(+plateYS,+plateYF+ribZ)
+            rframe_extrudeXZ(+plateXS,+plateXF+ribZ)
                 offset(r=-roundIn) offset(r=+roundIn)
                 offset(r=+roundOut) offset(r=-roundOut) 
                 {
@@ -267,7 +277,7 @@ module Xroller_frontframe3D_solid() {
             
             // Inside holes in ribs
             difference() {
-                rframe_extrudeXZ(+plateYS+floor,+plateYF+ribZ)
+                rframe_extrudeXZ(+plateXS+floor,+plateXF+ribZ)
                     offset(r=+roundIn) offset(r=-roundIn)
                         difference() {
                             Xroller_bottomframe2D(in,Xshift+2,Zshift);
@@ -280,7 +290,7 @@ module Xroller_frontframe3D_solid() {
         // Carve gap in the thick center block
         walls=4;
         difference() {
-            rframe_extrudeXZbevel(+plateYS+floor,+plateYF+ribZ-2*floor,bevel=floor)
+            rframe_extrudeXZbevel(+plateXS+floor,+plateXF+ribZ-2*floor,bevel=floor)
                 offset(r=+roundIn) offset(r=-roundIn-walls)
                     intersection() {
                         Xroller_bottomframe2D(in,Xshift,Zshift);
@@ -307,7 +317,7 @@ module Xroller_frontframe3D_solid() {
     Xroller_diagonalboltsW();
     
     // Meat around little rollers
-    rframe_bearing_rod(+1,rframeW);
+    rframe_bearing_retain(+1,rframeW,+plateXS+plateXF);
     
     // Chain attach plates
     rframe_chain_attachC()
@@ -322,7 +332,7 @@ module Xroller_frontframe3D_solid() {
         rframe_extrudeXZ(-100,200)
             Xroller_bottomframe2D(+rframeW);
         
-        mirrorX() translate(rframe_center_points[0]+[0,plateYS,0])
+        mirrorX() translate(rframe_center_points[0]+[0,plateXS,0])
             rotate([-90,0,0])
                 cylinder(d1=OD+2*taper,d2=OD,h=taper);
     }
@@ -336,7 +346,7 @@ module Xroller_frontframe3D_solid() {
                 square([0.55*inch,100],center=true); // chain outer plates
             }
         taper=7.5;
-        mirrorX() translate(rframe_center_points[0]+[0,plateYS,0])
+        mirrorX() translate(rframe_center_points[0]+[0,plateXS,0])
             rotate([-90,0,0])
                 cylinder(d1=OD,d2=OD+taper,h=taper);
     }
@@ -355,6 +365,7 @@ module Xroller_frontframe3D() {
         translate([0,-4,0])
             bearingY_centers() bearing3D(bearingY,clearance=1.5,center=true);
         
+        rframe_chain_attachC() chain_retain_holes();
         rframe_bolts();
         
         Xroller_loadcell();
@@ -366,7 +377,7 @@ module Xroller_frontframe3D() {
             threaded_rod(d=sparbolt,pitch=sparbolt_pitch,h=1*inch,anchor=BOTTOM);
         
         // Trim bottom flat
-        translate([0,-200+plateYS,0]) cube([400,400,400],center=true);
+        translate([0,-200+plateXS,0]) cube([400,400,400],center=true);
     }
 }
 
@@ -432,10 +443,10 @@ module Xroller_bullet() {
 
 // Printable versions of parts above, with Z in the right direction
 module printable_frontframe() {
-    rotate([90,0,0]) translate([0,-plateYS,0]) Xroller_frontframe3D();
+    rotate([90,0,0]) translate([0,-plateXS,0]) Xroller_frontframe3D();
 }
 module printable_backframe() {
-    rotate([-90,0,0]) translate([0,+plateYS,0]) Xroller_backframe3D();
+    rotate([-90,0,0]) translate([0,+plateXS,0]) Xroller_backframe3D();
 }
 module printable_toggle() {
     rotate([0,-90,0]) translate([+toggleOX/2,0,0]) Xroller_toggle3D();

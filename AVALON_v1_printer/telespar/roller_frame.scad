@@ -47,7 +47,7 @@ rframeS=sparbolt; // size of main walls
 
 // Center of chain that we grab above us
 XchainC = [+1.5*inch/2,sparOD/2+chainC[2],-chainC[0]-chain_sprocketR];
-XchainDX = rframeDX+20; // start points of chain retainer
+XchainDX = 3.0*inch; // start points of chain retainer (needs to be integer multiple of chain link distance)
 
 // Put children at chain attachment points
 module rframe_chain_attachC() {
@@ -63,12 +63,6 @@ module rframe_chain_bolt2D() {
     translate([-15,chain_retainN*chain_retainDY])
         circle(d=sparbolt+2*rframeW);
 }
-
-
-// Start of plastic from spar centerline
-plateYS = sparOD/2+2;
-plateYF = 5.0; // floor thickness of plate in front (also gets a bunch of ribs and such)
-plateYB = 6.0; // floor thickness of back plate
 
 // List of 3D centerpoints for roller bolt centers
 rframe_center_points = [
@@ -93,6 +87,10 @@ module rframe_centers() {
 module rframe_bolts() {
     rframe_centers() cylinder(d=sparbolt,h=sparOD+40,center=true);
 }
+// Space for bolts hex heads above Y=0
+module rframe_bolthex() {
+    rframe_centers() cylinder(d=sparbolthex+2,h=sparOD+40);
+}
 
 // Put children at the centers of the Y constraint bearings
 module bearingY_centers(frontback=[-1,+1]) {
@@ -105,50 +103,89 @@ module bearingY_centers(frontback=[-1,+1]) {
 // Project XYZ point down to XZ plane, removing Y
 function projectY(p) = [p[0],p[2]];
 
+// 2D outline of roller frame main bolt holes
+module rframe_holes2D(enlarge=0) 
+{
+    mirrorX() for (p=rframe_center_points) translate(projectY(p))
+        offset(r=+enlarge) circle(d=sparbolt+2);
+}
+
 // 2D outline of basic roller frame, shared between front and back features
-module rframe_baseframe2D(enlarge=0, hsides=1)
+module rframe_baseframe2D(enlarge=0, hsides=1, trim=0)
 { 
     offset(r=+enlarge)
-    {
-        // Material around bolts
-        mirrorX() for (p=rframe_center_points) translate(projectY(p))
-            circle(d=sparbolthex);
-    
-        // Left and right upright sides
-        mirrorX() hull()
-        for (p=rframe_center_points) translate(projectY(p))
-            circle(d=sparbolt);
-        
-        // Top and bottom sides
-        if (hsides) {
-            for (i=[0,1])
-            hull() mirrorX() translate(projectY(rframe_center_points[i]))
-                circle(d=sparbolt);
-        }
-        
-        // Bearing area
-        mirrorX() 
-        for (p=bearingY_center_points) translate(projectY(p)) 
+    difference() {
+        union() 
         {
-            // Bearing itself
-            offset(r=bearingYS)
-            square([bearingOD(bearingY),bearingZ(bearingY)],center=true); 
-            // Bearing axle
-            square([bearingYOD,bearingYZ],center=true); 
+            // Material around bolts
+            rframe_holes2D();
+        
+            // Vertical upright sides
+            sideH=sparbolt*0.5; // horizontal sideplate width
+            sideV=sparbolt*0.75; // vertical sideplate width
+            mirrorX() hull()
+            for (p=rframe_center_points) translate(projectY(p))
+                circle(d=sideV);
+            
+            // Horizontal (top and bottom) sides
+            if (hsides) {
+                for (i=[0,1])
+                hull() mirrorX() translate(projectY(rframe_center_points[i]))
+                    circle(d=sideH);
+            }
+            
+            // Bearing area
+            mirrorX() 
+            for (p=bearingY_center_points) translate(projectY(p)) 
+            {
+                // Bearing itself
+                offset(r=bearingYS)
+                square([bearingOD(bearingY),bearingZ(bearingY)],center=true); 
+                // Bearing axle
+                square([bearingYOD,bearingYZ],center=true); 
+            }
         }
+    
+        // Trim top surface (avoids hitting chain)
+        if (trim) translate([0,200+rframeDZ+sparbolt/2+rframeW-enlarge]) square([400,400],center=true);
     }
 }
 
-
-
-// 3D upright retaining rod, the bearings slide on here
-module rframe_bearing_rod(side,enlarge=0,enlargeZ=0) {
+// Space for 3D upright retaining rod, the bearings slide on here.
+//  Side=+1 is the +Y direction, side=-1 is the -Y direction
+//  The rods need to be beveled, and the hole needs to be drilled out.
+module rframe_bearing_rod(side,enlarge=0,enlargeZ=0,exit=0) {
     mirrorX() 
         translate([bearingYDX,side*bearingYDY,-bearingYL/2])
+        {
             bevelcylinder(d=bearingYOD+2*enlarge,h=bearingYL+enlargeZ,bevel=0.7*enlarge);
+            
+            if (exit) { // add an exit path, so the rod can be driven out too
+                scale([1,1,-1])
+                    cylinder(d=bearingYOD-2,h=bearingYL+enlargeZ);
+            }
+        }
 }
 
-// Space around bearing
+// Retain the bearing rods, by tapering back to the frame
+module rframe_bearing_retain(side,enlarge,Yflat,extraZ=0) {
+    round=enlarge*0.8;
+    mirrorX()
+        translate([bearingYDX,side*bearingYDY,0])
+        {
+            linear_extrude(height=bearingYL+2*extraZ,center=true,convexity=4)
+            offset(r=-round) offset(r=+round)
+            {
+                circle(d=bearingYOD+2*enlarge);
+                translate([0,Yflat-side*bearingYDY,0])
+                    scale([1,side,1])
+                        translate([0,-2,0])
+                            square([15,4],center=true);
+            }
+        }
+}
+
+// 3D space around bearings
 module rframe_bearing_space(enlarge=0) {
     bearingY_centers() 
     difference() {
@@ -168,14 +205,12 @@ module rframe_bearing_space(enlarge=0) {
     }
 }
 
-// Apply frame rounding to this 2D children
-module rframe_frameround2D() 
+// Apply frame rounding to our 2D children (round inside corners)
+module rframe_frameround2D(roundinside=12) 
 {
-    roundinside=12;
     offset(r=-roundinside) offset(r=+roundinside)
         children();
 }
-
 
 // Slice XZ plane to XY at this Y coordinate
 module sliceXZ(atY) {
@@ -202,14 +237,14 @@ module rframe_extrudeXZbevel(start,height,bevel)
 }
 
 // Heavier frame plate on one side
-module rframe_heavyplate(topslot=22, bottomtrim=-22, roundIn=3)
+module rframe_heavyplate(topslot=22, bottomtrim=-22, roundIn=3, trim=0)
 {
     rframe_frameround2D() 
         offset(r=+roundIn) offset(r=-roundIn)
         difference() {
             union() {
                 difference() {
-                    rframe_baseframe2D(enlarge=rframeW);
+                    rframe_baseframe2D(enlarge=rframeW,trim=trim);
                     translate([0,topslot-200]) square([2*rframeDX,400],center=true);
                 }
                 children();

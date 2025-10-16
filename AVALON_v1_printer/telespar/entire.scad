@@ -5,7 +5,7 @@
  Built by Orion Lawlor 2025-10 (Public Domain).
 */
 
-fullview=0; // 0: fast, skip pulleys;  1: complete; 2: bumps along spars; 3: holes along spars
+fullview=2; // 0: fast, skip pulleys;  1: complete; 2: bumps along spars; 3: holes along spars
 
 entire=1; // sets flag to suppress geometry in includes
 include <interfaces.scad>;
@@ -148,7 +148,7 @@ print_chain_len("Z",chainZ);
 //  Start to move the spar to the correct location
 rotateZ = [90,0,0];  flipZ=[1,1,1];  startZ = [-travelX/2,-travelY/2,0]+[-3*inch,0,0];
 rotateY = [0,-90,0];  flipY=[1,1,1];  startY = [-travelX/2,-travelY/2,0]+[0,-backY,0];
-rotateX = [0,90,-90]; flipX=[1,1,-1];  startX = [-travelX/2,0,0]+[-leftX,0,sparOD+sparC];
+rotateX = [0,90,-90]; flipX=[1,1,-1];  startX = [-travelX/2,0,0]+[-leftX+0.5*inch,0,sparOD+sparC];
 
 
 /* Create a spar and chain drive with this length (center of stepper to center of idler).
@@ -219,14 +219,13 @@ module sparsX() {
     translate(startX) rotate(rotateX) {
         scale(flipX) motion_stage("X",chainX,leftXE,rightXE);
         
-        for (end=[0,1]) translate([0,(end?+leftX:chainX-rightX),0])
+        for (end=[0,1]) 
+            translate([0,(end?+leftX:chainX-rightX)-0.5*inch,0])
             scale([1,end?-1:+1,1])
-            rotate([90,0,0]) rotate([0,0,90]) // move so Y+ is along the spar
-            { // +Z is down the spar, add brackets for rollers
-                translate([0,0,-sparOD/2-YrollerZ-carrierEdge])
-                    Yroller(); 
-                translate([0,0,+sparOD/2+carrierEdge])
-                    Yrollersupport();
+            rotate([0,90,0]) 
+            translate([0,0,sparOD+sparC]) // mostly makes up for startX
+            {
+                Yroller_demo(0);
             }
     }
 }

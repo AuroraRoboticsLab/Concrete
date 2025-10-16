@@ -1,141 +1,215 @@
 /*
- This carrier holds the X axis spar above the Y axis spar.
- Two rollers help the X axis move smoothly.
- 
+The Y roller slides along the Y axis spars, and holds the X axis spar.
+
+roller cross bolts should be 3.5 inches long, attached with nylocks.
+
+
+ Coordinate system used in this file:
+   Z: up and down.  Z is flipped here, to make X and Y more similar.
+   Y: across spar, -Y toward tools
+   X: along spar
+
+Orion Lawlor, lawlor@alaska.edu, 2025-10-15 (Public Domain)
 */
-include <interfaces.scad>
-include <BOSL2/std.scad>
-include <BOSL2/threading.scad>
 
+include <roller_frame.scad> //<- basic frame
+include <AuroraSCAD/axes3D.scad>
 
-YrollerW=2.4; // minimum wall thickness of X carrier
-YrollerF=2.0; // floor plate thickness
-carrierEdge=0.100*inch; // space between carrier and spar, for washer to roll
-YrollerZ=1.5*inch-carrierEdge; // total along-spar length of X carrier
-YrollerH=0.5*inch; // distance from bottom surface up to mounting bolt hole
+// Start of plastic from spar centerline, Y roller plate, measured along local Y (cross spar)
+plateYS = sparOD/2+2;
+plateYF = 5.0; // minimum floor thickness of plate in front
+plateYFH = 16.0; // heavy thickness of front plate (needs to transmit chain force)
+plateYB = 5.0; // minimum floor thickness of back plate
+plateYBH = 10.0; // heavy thickness of back plate
 
 sparC=3; // clearance between X and Y spars
+XsparC2D = [0,-sparOD - sparC]; // 2D center point of X axis spar relative to Y axis spar (Y is down relative to world)
+XsparW = 4.0; // thickness of plastic surrounding the X spar
+Xsparclear = 0.1; // clearance around X spar (to allow spar to slide into plastic)
 
-rollerboltT=5/16*inch; // tap diameter of 3/8" bolts holding rollers
-rollerTW=3.2; // wall thickness around roller tap area
-rollerY = -sparOD/2-sparC+rollerR; // Y centerline for roller bolts
-rollerX = +sparOD/2+rollerOD/2; // X centerline for roller bolts
-
-rollerboltOD=3/8*inch+0.2; // thru diameter of bolts holding rollers
-
-// Make basic 2D parts of Yroller
-module Yroller2Dbasic(outside=0) {
-    spar2D(outside?+YrollerW:0);
-    
-    for (side=[-1,+1]) translate([side*rollerX,rollerY])
-        circle(d=rollerboltT+outside*2*rollerTW);
-}
-
-
-// Make 2D shape of Yroller, for holes of this diameter.  Fully rounded
-module Yroller2D(hole=rollerboltT) {
-    round=0.4*hole;
+/*
+ Add a hole for the X axis spar to go through.
+ Gets tacked on to existing 2D children in some reasonable way
+*/
+module Xspar_hole2D(wall = XsparW,round=12) {
     difference() {
-        offset(r=-round) offset(r=+round)
+        rframe_frameround2D(round)
         union() {
-            Yroller2Dbasic(1);
-            
-            // Crossbar over top of roller bolts
-            translate([0,rollerY + rollerboltT/2+rollerTW/2])
-                square([rollerX*2,rollerTW],center=true);
-            
-            // Hull to grab onto bolts
-            difference() {
-                hull() Yroller2Dbasic(1);
-                hull() Yroller2Dbasic(0);
-            }
+            children();
+            translate(XsparC2D) spar2D(enlarge=wall+Xsparclear);
         }
         
-        spar2D();
-        
-        if (hole>0)
-        for (side=[-1,+1]) translate([side*rollerX,rollerY])
-            circle(d=hole);
+        translate(XsparC2D) spar2D(enlarge=Xsparclear);
     }
 }
 
-// Make 3D shape of carrier
-module Yroller(crossbolt=1, baseplate=1, hole=rollerboltT, height=YrollerZ)
-{
-    boss=0.75*height; // size of bosses over bolt entrances
-    taper=3.2;
 
+// Create one end of the X-retained-to-Y roller bolt attachment points
+XY_boltC=[sparOD/2+Xsparclear, 1.5*inch,XsparC2D[1]];
+module XY_boltC() {
+    translate(XY_boltC)
+        rotate([0,90,0])
+            children();
+}
+
+XbossH = 0.25*inch; // height of cross bolt support boss
+XbossW = 0.75*inch; // diameter of bolt support boss
+
+// Crossbar to resist frame shear (mostly connecting the chain up to the frame)
+module Yroller_cross() {
+    mirrorX() 
+    hull() {
+        for (p=[
+            [30,-sparOD/2], // X spar side
+            [-45,+sparOD/2] // chain side
+        ]) translate(p) circle(d=XsparW);
+    }
+}
+
+// Reinforcing for Y roller
+module Yroller_heavy2D(round=12) 
+{
+    Xspar_hole2D(wall=XsparW,round=round) {
+        // Symmetric heavy plate (trimmed on chain side)
+        for (flip=[1,-1]) scale([1,flip])
+            rframe_heavyplate(trim=flip>0?1:0);
+        // taper in material around axle hole
+        translate([0,XsparC2D[1]])
+            square([sparOD+2*XbossH,XbossW],center=true);
+        // Add cross support
+        Yroller_cross();
+    }
+}
+
+// Cut holes for bearing rods
+module Yroller_bearing_rod_holes(side) {
+    scale([1,1,-1]) //<- insert from -Z direction
+        rframe_bearing_rod(side,0,enlargeZ=50,exit=1);
+    
+    rframe_bearing_space();
+}
+
+// The front frame sits outside the Y spars, and holds:
+//    - The Y axis drive chain
+//    - The X axis rod with a retaining bolt
+module Yroller_frontframe3D()
+{
     difference() {
-        union() {        
-            // Base plate
-            if (baseplate) 
-            for (z=[0,height-YrollerF]) translate([0,0,z])
-            linear_extrude(height=YrollerF) 
-            difference() {
-                hull() Yroller2Dbasic(1);
-                spar2D();
+        union() {
+            // Thin plate
+            rframe_extrudeXZ(+plateYS,plateYF) 
+            {
+                Xspar_hole2D() 
+                    rframe_baseframe2D(enlarge=rframeW,trim=1);
+                Yroller_heavy2D(); // include base plate everywhere
             }
             
-            // Walls
-            linear_extrude(height=height,convexity=6) 
-                Yroller2D(hole=hole);
-                
-            if (crossbolt) { // bosses around crossbolt entrances
-                intersection() {
-                    translate([-200,-200,0]) cube([400,400,height]);
-                    for (side=[-1,+1]) scale([side,1,1])
-                        translate([sparOD/2,0,YrollerH]) rotate([0,90,0])
-                            cylinder(d1=boss+2*taper,d2=boss,h=taper);
+            // Heavy plate
+            rframe_extrudeXZ(+plateYS,plateYFH) 
+                difference() {
+                    Yroller_heavy2D();
+                    
+                    // Lighten cuts on interior of heavy
+                    rframe_frameround2D(-8)
+                    offset(r=-1.5*rframeW) Yroller_heavy2D();
+                }
+            
+            rframe_bearing_retain(+1,rframeW,plateYS+plateYF);
+            
+            rframe_chain_attachC()
+                chain_retain_plate3D() rframe_chain_bolt2D();
+            
+            // Taper to chain attachment
+            intersection() {
+                rframe_chain_attachC()
+                    translate([-14,0,0]) 
+                        cube([12,100,40],center=true); // cube below attachment
+                rframe_chain_attachC()
+                    chain_retain_plate3D(40) rframe_chain_bolt2D();
+                mirrorX() translate(rframe_center_points[0])
+                    translate([0,plateYS,0]) rotate([-90,0,0])
+                    cylinder(d1=14,d2=32,h=12);
+            }
+            
+            // Surround base of XY bolt
+            mirrorX() XY_boltC() 
+                    bevelcylinder(d=XbossW,h=XbossH,bevel=1.5);
+        }
+        
+        Yroller_bearing_rod_holes(+1);
+        
+        rframe_chain_attachC() chain_retain_holes();
+        rframe_bolts();
+        
+        mirrorX() XY_boltC() {
+            // Thru area
+            cylinder(d=sparbolt,h=25,center=true);
+            
+            // Space for bolt head and tool
+            translate([0,0,XbossH]) bevelcylinder(d=sparbolthex+3.0,h=25,bevel=2);
+        }
+    }
+}
+
+
+// The back frame sits inside the Y spars, mostly just holds the ends of the bolts.
+module Yroller_backframe3D()
+{
+    difference() {
+        union() {
+            rframe_extrudeXZ(-plateYS-plateYB,plateYB) 
+                Xspar_hole2D() 
+                    rframe_baseframe2D(enlarge=rframeW);
+            
+            // Heavy reinforcing
+            rframe_extrudeXZ(-plateYS-plateYBH,plateYBH)
+            {
+                Xspar_hole2D(wall=XsparW,round=5) {
+                    for (flip=[1,-1]) scale([1,flip])
+                        rframe_heavyplate();
+                    Yroller_cross();
                 }
             }
+            
+            rframe_bearing_retain(-1,rframeW,-plateYS-plateYB);
         }
         
-                
+        Yroller_bearing_rod_holes(-1);
         
-        // Cut in threads
-        for (side=[-1,+1]) translate([side*rollerX,rollerY])
-        {
-            threaded_rod(d=sparbolt,pitch=sparbolt_pitch,h=height+5,anchor=BOTTOM);
-            if (crossbolt) 
-                translate([0,0,height+0.01]) scale([1,1,-1])
-                    cylinder(d1=sparbolt,d2=5/16*inch,h=5); // taper 
-        }
-        
-        if (crossbolt) {
-            translate([0,0,YrollerH]) rotate([0,90,0]) { 
-                // thru hole for crossbolt
-                cylinder(d=sparbolt,h=2*sparOD,center=true);
-        
-                // end clearances for crossbolt head
-                nutOD=9/16*inch/cos(30);
-                translate([0,0,sparOD/2+taper])
-                    cylinder(d=nutOD+4,h=sparOD);
-                
-                scale([1,1,-1]) // hex to hold crossbolt nut
-                    translate([0,0,sparOD/2+taper])
-                        rotate([0,0,30])
-                            cylinder(d=nutOD+0.2,h=sparOD,$fn=6);
-            }
-        }
-
-        
-        // Version stamp
-        if (crossbolt) translate([sparOD/2+5,-15,0])
-            linear_extrude(height=1.0) rotate([0,0,-90]) scale([-1,1,1])
-                text("v1A",size=5,halign="center",valign="center");
+        rframe_bolts();
     }
 }
 
-// Thin far-side support slice frame
-module Yrollersupport() {
-    Yroller(crossbolt=0,baseplate=0,hole=rollerboltOD,height=5);
+
+// Printable versions of parts above, with Z in the right direction
+module printable_Yfrontframe() {
+    rotate([90,0,0]) translate([0,-plateYS,0]) Yroller_frontframe3D();
+}
+module printable_Ybackframe() {
+    rotate([-90,0,0]) translate([0,+plateYS,0]) Yroller_backframe3D();
+}
+
+
+
+// Demonstrate all parts of the Y roller
+module Yroller_demo(spar=1) {
+    Yroller_frontframe3D();
+    Yroller_backframe3D();
+    
+    if (spar) #rotate(rframe_sparR) linear_extrude(height=300,center=true) spar2D();
+    #bearingY_centers() bearing3D(bearingY,center=true);
+    #rframe_bolts();
+    
+    echo("Bolt length minimum: ",(plateYB + 2*plateYS + plateYF)/inch+0.375," inches");
 }
 
 if (is_undef(entire)) 
 {
-    // Big carrier
-    Yroller();
-
-    // Small support slice on far side
-    translate([0,10+sparOD]) Yrollersupport();
+    //Yroller_demo();
+    
+    //printable_Yfrontframe();
+    printable_Ybackframe();
 }
+
+
+
