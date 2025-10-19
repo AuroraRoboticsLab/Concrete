@@ -24,7 +24,7 @@ plateYBH = 10.0; // heavy thickness of back plate
 
 sparC=3; // clearance between X and Y spars
 XsparC2D = [0,-sparOD - sparC]; // 2D center point of X axis spar relative to Y axis spar (Y is down relative to world)
-XsparW = 4.0; // thickness of plastic surrounding the X spar
+XsparW = rframeW; // thickness of plastic surrounding the X spar
 Xsparclear = 0.1; // clearance around X spar (to allow spar to slide into plastic)
 
 /*
@@ -44,12 +44,15 @@ module Xspar_hole2D(wall = XsparW,round=12) {
 }
 
 
-// Create one end of the X-retained-to-Y roller bolt attachment points
-XY_boltC=[sparOD/2+Xsparclear, 1.5*inch,XsparC2D[1]];
-module XY_boltC() {
-    translate(XY_boltC)
-        rotate([0,90,0])
-            children();
+// Create one end of the X-retained-to-Y roller bolt attachment point
+XY_boltT=[0, 1.5*inch,XsparC2D[1]-sparOD/2-Xsparclear]; // top center
+XY_boltB=XY_boltT+[0,0,sparOD+2*Xsparclear]; // bottom center
+XY_boltBL = 1.25*inch; // length of attachment to bottom bolt
+module XY_boltT() {
+    translate(XY_boltT) scale([1,1,-1]) children();
+}
+module XY_boltB() {
+    translate(XY_boltB) children();
 }
 
 XbossH = 0.25*inch; // height of cross bolt support boss
@@ -60,21 +63,21 @@ module Yroller_cross() {
     mirrorX() 
     hull() {
         for (p=[
-            [30,-sparOD/2], // X spar side
-            [-45,+sparOD/2] // chain side
+            [40,-bearingYDY], // X spar side
+            [-55,+bearingYDY] // chain side
         ]) translate(p) circle(d=XsparW);
     }
 }
 
 // Reinforcing for Y roller
-module Yroller_heavy2D(round=12) 
+module Yroller_heavy2D(round=8) 
 {
     Xspar_hole2D(wall=XsparW,round=round) {
         // Symmetric heavy plate (trimmed on chain side)
         for (flip=[1,-1]) scale([1,flip])
             rframe_heavyplate(trim=flip>0?1:0);
-        // taper in material around axle hole
-        translate([0,XsparC2D[1]])
+        // taper in material around axle holes
+        translate([0,XsparC2D[1]]) for (angle=[0,90]) rotate([0,0,angle])
             square([sparOD+2*XbossH,XbossW],center=true);
         // Add cross support
         Yroller_cross();
@@ -114,7 +117,7 @@ module Yroller_frontframe3D()
                     offset(r=-1.5*rframeW) Yroller_heavy2D();
                 }
             
-            rframe_bearing_retain(+1,rframeW,plateYS+plateYF);
+            rframe_bearing_retain(+1,rframeW,plateYS+plateYF,3);
             
             rframe_chain_attachC()
                 chain_retain_plate3D() rframe_chain_bolt2D();
@@ -131,9 +134,11 @@ module Yroller_frontframe3D()
                     cylinder(d1=14,d2=32,h=12);
             }
             
-            // Surround base of XY bolt
-            mirrorX() XY_boltC() 
+            // Surround top of XY bolt
+            XY_boltT() 
                     bevelcylinder(d=XbossW,h=XbossH,bevel=1.5);
+            XY_boltB() 
+                    bevelcylinder(d=XbossW,h=XY_boltBL,bevel=1.5);
         }
         
         Yroller_bearing_rod_holes(+1);
@@ -141,13 +146,11 @@ module Yroller_frontframe3D()
         rframe_chain_attachC() chain_retain_holes();
         rframe_bolts();
         
-        mirrorX() XY_boltC() {
-            // Thru area
-            cylinder(d=sparbolt,h=25,center=true);
-            
-            // Space for bolt head and tool
-            translate([0,0,XbossH]) bevelcylinder(d=sparbolthex+3.0,h=25,bevel=2);
-        }
+        XY_boltT() cylinder(d=sparbolt,h=25,center=true);
+        
+        if (is_undef(entire)) 
+        XY_boltB()
+            threaded_rod(d=sparbolt,pitch=sparbolt_pitch,h=XY_boltBL,anchor=BOTTOM);
     }
 }
 
@@ -171,7 +174,7 @@ module Yroller_backframe3D()
                 }
             }
             
-            rframe_bearing_retain(-1,rframeW,-plateYS-plateYB);
+            rframe_bearing_retain(-1,rframeW,-plateYS-plateYB,3);
         }
         
         Yroller_bearing_rod_holes(-1);
@@ -205,10 +208,10 @@ module Yroller_demo(spar=1) {
 
 if (is_undef(entire)) 
 {
-    //Yroller_demo();
+    Yroller_demo();
     
     //printable_Yfrontframe();
-    printable_Ybackframe();
+    //printable_Ybackframe();
 }
 
 
