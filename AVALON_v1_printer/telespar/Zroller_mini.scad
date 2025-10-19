@@ -9,6 +9,11 @@ include <AuroraSCAD/bevel.scad>;
 include <BOSL2/std.scad>
 include <BOSL2/threading.scad>
 
+
+ZrollerZ = 0.75*inch; // width of roller
+ZrollerMD = 1.2*inch; // maximum diameter of roller
+ZrollerSX = 1.7*inch; // shift from center of spar to center of Z roller 
+
 // Bearings that let the Z roller spin under load
 bearing = bearing_625;
 ZaxleOD = 5; // 5mm shaft is axle
@@ -96,7 +101,7 @@ module Zroller_bolts_all(enlarge=0,extraZ=0,bolts=1) {
     // Mounting bolts
     if (bolts)
     Zroller_bolt_centers()  translate([0,0,-enlarge-extraZ])
-        bevelcylinder(d=Zroller_bolt+2*enlarge,h=boltL+2*enlarge+extraZ,bevel=enlarge*0.7); 
+        bevelcylinder(d=sparbolt+2*enlarge,h=boltL+2*enlarge+extraZ,bevel=enlarge*0.7); 
 }
 
 // Holds Zroller

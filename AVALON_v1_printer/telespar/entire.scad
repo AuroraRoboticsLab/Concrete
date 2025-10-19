@@ -13,7 +13,7 @@ $fs=0.5; $fa=5; // coarser render
 
 include <Xroller.scad>;
 include <Yroller.scad>;
-include <Zroller_mini.scad>;
+include <Zroller_big.scad>;
 include <chain_retain.scad>;
 
 include <AuroraSCAD/axes3D.scad>;
