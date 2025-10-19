@@ -41,7 +41,7 @@ rframeDZ = sparOD/2 + bearingOD/2 - rframeDZ_preload; // distance from spar cent
 rframe_sparR = [0,90,0]; // rotate down to the spar orientation
 
 
-rframeW=2.4; // wall thickness around main components
+rframeW=2.32; // wall thickness around main components (integer number of lines)
 rframeS=sparbolt; // size of main walls
 
 
@@ -107,7 +107,7 @@ function projectY(p) = [p[0],p[2]];
 module rframe_holes2D(enlarge=0) 
 {
     mirrorX() for (p=rframe_center_points) translate(projectY(p))
-        offset(r=+enlarge) circle(d=sparbolt+2);
+        circle(d=sparbolt+2*enlarge);
 }
 
 // 2D outline of basic roller frame, shared between front and back features
@@ -121,8 +121,8 @@ module rframe_baseframe2D(enlarge=0, hsides=1, trim=0)
             rframe_holes2D();
         
             // Vertical upright sides
-            sideH=sparbolt*0.5; // horizontal sideplate width
-            sideV=sparbolt*0.75; // vertical sideplate width
+            sideH=sparbolt*0.25; // horizontal sideplate width
+            sideV=sparbolt*0.5; // vertical sideplate width
             mirrorX() hull()
             for (p=rframe_center_points) translate(projectY(p))
                 circle(d=sideV);
@@ -237,7 +237,7 @@ module rframe_extrudeXZbevel(start,height,bevel)
 }
 
 // Heavier frame plate on one side
-module rframe_heavyplate(topslot=22, bottomtrim=-22, roundIn=3, trim=0)
+module rframe_heavyplate(topslot=25, bottomtrim=-22, roundIn=3, trim=0)
 {
     rframe_frameround2D() 
         offset(r=+roundIn) offset(r=-roundIn)
@@ -245,7 +245,7 @@ module rframe_heavyplate(topslot=22, bottomtrim=-22, roundIn=3, trim=0)
             union() {
                 difference() {
                     rframe_baseframe2D(enlarge=rframeW,trim=trim);
-                    translate([0,topslot-200]) square([2*rframeDX,400],center=true);
+                    translate([0,topslot-200]) square([1.95*rframeDX,400],center=true);
                 }
                 children();
             }
