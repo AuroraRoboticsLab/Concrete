@@ -82,7 +82,7 @@ module Zroller_bolt_centers() {
         children();
 
     // outer bolt
-    translate([3.0*inch,sparOD/2,0]) rotate([-90,0,0])
+    translate([2.0*inch,sparOD/2,0]) rotate([-90,0,0])
         children();
     
 }
@@ -90,7 +90,7 @@ module Zroller_bolt_centers() {
 // All Z roller bolts, with this enlargement
 module Zroller_bolts_all(enlarge=0,extraZ=0,bolts=1) {
     ZaxleL=2*inch; // roller shaft length
-    boltL=1.0*inch; // bolt threaded length
+    boltL=0.65*inch; // bolt threaded length
     
     ZrollerC() translate([0,0,-ZaxleL/2-enlarge])
         bevelcylinder(d=Zroller_bolt+2*enlarge,h=ZaxleL+2*enlarge+extraZ,bevel=enlarge*0.7);
@@ -107,13 +107,15 @@ module Zroller_holder() {
     
     difference() {
         union() {
-            hull() Zroller_bolts_all(enlarge=wall);
+            hull() 
+            {
+                Zroller_bolts_all(enlarge=wall);
 
-            // Big heavy lump to stop roller from pivoting
-            translate([sparOD/2+wall,sparOD/2-wall]) rotate([-90,0,0]) 
-                scale([1.5,1.0,1]) // stretch
-                bevelcylinder(d=1.55*inch,h=1.0*inch,bevel=wall*0.7);
-        
+                // Big heavy lump to stop roller from pivoting
+                translate([sparOD/2+wall,sparOD/2-wall]) rotate([-90,0,0]) 
+                    scale([1.5,1.0,1]) // stretch
+                    bevelcylinder(d=1.55*inch,h=1.0*inch,bevel=wall*0.7);
+            }
             // Thin shroud to keep debris out
             shroud=clear+wall/2;
             ZrollerC() 
@@ -121,10 +123,14 @@ module Zroller_holder() {
         }
         Zroller_bolts_all(enlarge=0.2,extraZ=20,bolts=0);
         
-        Zroller_bolt_centers() translate([0,0,-wall-1])
+        // Space out end to punch out the axle rod
+        ZrollerC() cylinder(d=5.0,h=100,center=true);
+       
+        // Threaded sections of bolts
+        Zroller_bolt_centers() translate([0,0,-wall-0.1])
         {
             OD=3/8*inch-0.1;
-            len=1.5*inch;
+            len=0.75*inch;
             if (is_undef(entire))
                 threaded_rod(d=OD,pitch=sparbolt_pitch,length=len,anchor=BOTTOM);
             else // faster simpler version
@@ -147,8 +153,11 @@ module Zroller_holder() {
         
         // Make space for other spar
         sparClear=3.0;
+        
         linear_extrude(height=100,center=true)
-            translate([0,ZrollerDX+sparOD]) spar2Dbolts(enlarge=sparClear);
+            translate([0,ZrollerDX+sparOD]) 
+            for (angle=[0,90]) rotate([0,0,angle])
+                spar2Dbolts(enlarge=sparClear);
         
         // Trim base flat to bolt against spar
         translate([0,-200+sparOD/2,0]) cube([400,400,400],center=true);
@@ -160,8 +169,15 @@ module Zroller_demo() {
     scale([5,1,1]) spar2D();
     translate([0,sparOD/2+ZrollerDX+sparOD/2]) spar2D();
     
-    Zroller_holder();
-    ZrollerC() Zroller3D();
+    difference() {
+        union() {
+            Zroller_holder();
+            ZrollerC() Zroller3D();
+        }
+        
+        cube([200,200,200]);
+    }
+    
 }
 
 // 3D printable configuration for parts
@@ -174,10 +190,13 @@ module printable_Zroller3D() {
 }
 
 if (is_undef(entire)) { // show the part
-    //Zroller2D();
-    //Zroller_demo();
-    printable_Zroller_holder();
-    printable_Zroller3D();
+    if (0) { // demo display
+        //Zroller2D();
+        Zroller_demo();
+    } else { // printable parts
+        printable_Zroller_holder();
+        printable_Zroller3D();
+    }
 }
 
 
