@@ -50,7 +50,7 @@ ZrollerDX = 1.0*inch; // shift from surface of spar to surface of next spar
 
 // Centerline of chain circuit, relative to spar mounting bolt
 //   X: across spar.  Y: along spar.  Z: above spar mounting face
-chainC = [-75,0,0.5*inch];
+chainC = [-75,0,18];
 
 // X radius of chain centerline, measured at tips of sprockets
 chain_sprocketR = 34.5579;

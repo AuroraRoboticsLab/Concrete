@@ -147,8 +147,8 @@ print_chain_len("Z",chainZ);
 //  Flip to put chain on the correct side of the spar (in chain coords)
 //  Start to move the spar to the correct location
 rotateZ = [90,0,0];  flipZ=[1,1,1];  startZ = [-travelX/2,-travelY/2,0]+[-3*inch,0,0];
-rotateY = [0,-90,0];  flipY=[1,1,1];  startY = [-travelX/2,-travelY/2,0]+[0,-backY,0];
-rotateX = [0,90,-90]; flipX=[1,1,-1];  startX = [-travelX/2,0,0]+[-leftX+0.5*inch,0,sparOD+sparC];
+rotateY = [0,-90,0];  flipY=[1,-1,1];  startY = [-travelX/2,travelY/2,0]+[0,+backY,0];
+rotateX = [0,90,-90]; flipX=[1,1,1];  startX = [-travelX/2,0,0]+[-leftX+0.5*inch,0,sparOD+sparC];
 
 
 /* Create a spar and chain drive with this length (center of stepper to center of idler).
@@ -178,7 +178,7 @@ module sparsZ() {
     translate(startZ+[-overhangX,-sparOD,0]) rotate([0,0,-90]) make_spar("ZcrossX",travelX+2*overhangX);
     
     // Base and top Y crossbars 
-    overhangY=24*inch;
+    overhangY=12*inch;
     bot = -3*inch;
     top = chainZ+5*inch;
     for (xside=[-1,+1]) scale([xside,1,1])
@@ -191,18 +191,20 @@ module sparsY() {
     // Main Y roller spars
     mirrorX() 
         translate(startY) rotate(rotateY) {
-            scale(flipY) motion_stage("Y",chainY,backYE,frontYE);
+            scale(flipY) {
+                motion_stage("Y",chainY,backYE,frontYE);
             
-            for (end=[0,1]) translate([0,(end?chainY-frontY:+backY),0])
-            {
-                // V rollers on each end of Y, to index on Z uprights
-                rotate([90,0,0]) rotate([0,end?-90:+90,0])
+                for (end=[0,1]) translate([0,(end?chainY-frontY:+backY),0])
                 {
-                    Zroller_holder();
-                    ZrollerC() Zroller3D();
+                    // V rollers on each end of Y, to index on Z uprights
+                    rotate([90,0,0]) rotate([0,end?-90:+90,0])
+                    {
+                        Zroller_holder();
+                        ZrollerC() Zroller3D();
+                    }
+                    rotate([0,90,0]) scale([-1,end?+1:-1,1]) translate([0,1*inch,0])
+                        Zchain_holder();
                 }
-                rotate([0,90,0]) scale([-1,end?+1:-1,1]) translate([0,1*inch,0])
-                    Zchain_holder();
             }
         }
    
@@ -217,7 +219,8 @@ module sparsY() {
 // X axis spar(s)
 module sparsX() {
     translate(startX) rotate(rotateX) {
-        scale(flipX) motion_stage("X",chainX,leftXE,rightXE);
+        scale(flipX) 
+            motion_stage("X",chainX,leftXE,rightXE);
         
         for (end=[0,1]) 
             translate([0,(end?+leftX:chainX-rightX)-0.5*inch,0])
@@ -233,7 +236,7 @@ module sparsX() {
 // Tool rack spars
 module sparsT() {
     toolZDX = 12*inch; // inset from Z upright to tool uprights
-    startT = flipY(startZ)+[toolZDX,0,0];
+    startT = (startZ)+[toolZDX,0,0];
 
     // Upright tool rack spars on +Y face
     mirrorX()
@@ -244,7 +247,7 @@ module sparsT() {
     
     // Set of Z crossbars at various heights (to taste)
     for (z=[16*inch, 32*inch, 48*inch, 64*inch]) 
-        translate(startT + [0,-sparOD,z]) rotate(rotateX) {
+        translate(startT + [0,+sparOD,z]) rotate(rotateX) {
             make_spar("toolX",chainX-2*toolZDX-8*inch);
         }
 }
@@ -266,7 +269,7 @@ module text_labels() {
                 text("Printbed",size=sz,halign="center",valign="center");
         }
         
-        translate([0,travelY/2,travelZ/2]) rotate([90,0,0]) 
+        translate([0,-travelY/2,travelZ/2]) rotate([90,0,0]) 
             linear_extrude(height=1) 
                 text("Tool Rack",size=sz,halign="center",valign="center");
     }
@@ -280,7 +283,7 @@ module demo_entire(position=[20*inch,40*inch,30*inch])
     sparsZ();
     translate([0,0,H[2]]) sparsY();
     translate([0,H[1],H[2]]) sparsX();
-    translate(H + [0,0,sparOD+sparC]) Xroller_demo(spar=0);
+    translate(H + [0,0,sparOD+sparC]) rotate([0,0,180]) Xroller_demo(spar=0);
 
     sparsT();
 }
