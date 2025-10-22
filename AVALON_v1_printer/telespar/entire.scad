@@ -116,8 +116,8 @@ travelX = 72*inch;
 travelY = 72*inch;
 travelZ = 72*inch;
 
-leftX = 8*inch; // added chain on stepper side (extra long to keep stepper clear of Z axis)
-rightX = 6*inch; // added chain on idler side
+leftX = 4*inch; // added chain on stepper side (extra long to keep stepper clear of Z axis)
+rightX = 4*inch; // added chain on idler side
 leftXE = 0*inch; 
 rightXE = 0*inch; // extra spar on right side past idler
 
@@ -146,7 +146,7 @@ print_chain_len("Z",chainZ);
 // Rotation to orient steppers on each axis
 //  Flip to put chain on the correct side of the spar (in chain coords)
 //  Start to move the spar to the correct location
-rotateZ = [90,0,0];  flipZ=[1,1,1];  startZ = [-travelX/2,-travelY/2,0]+[-3*inch,0,0];
+rotateZ = [90,0,0];  flipZ=[-1,1,1];  startZ = [-travelX/2,-travelY/2,0]+[+3*inch,0,0];
 rotateY = [0,-90,0];  flipY=[1,-1,1];  startY = [-travelX/2,travelY/2,0]+[0,+backY,0];
 rotateX = [0,90,-90]; flipX=[1,1,1];  startX = [-travelX/2,0,0]+[-leftX+0.5*inch,0,sparOD+sparC];
 
@@ -172,7 +172,7 @@ module sparsZ() {
         }
     
     // Base and top X crossbars 
-    overhangX=24*inch;
+    overhangX=12*inch;
     for (z=[-5*inch,chainZ+3*inch]) translate([0,0,z])
     mirrorY()
     translate(startZ+[-overhangX,-sparOD,0]) rotate([0,0,-90]) make_spar("ZcrossX",travelX+2*overhangX);
@@ -191,9 +191,10 @@ module sparsY() {
     // Main Y roller spars
     mirrorX() 
         translate(startY) rotate(rotateY) {
-            scale(flipY) {
+            scale(flipY) 
                 motion_stage("Y",chainY,backYE,frontYE);
             
+            scale([1,-1,-1]) {
                 for (end=[0,1]) translate([0,(end?chainY-frontY:+backY),0])
                 {
                     // V rollers on each end of Y, to index on Z uprights
@@ -235,9 +236,9 @@ module sparsX() {
 
 // Tool rack spars
 module sparsT() {
-    toolZDX = 12*inch; // inset from Z upright to tool uprights
+    toolZDX = 8*inch; // inset from Z upright to tool uprights
     startT = (startZ)+[toolZDX,0,0];
-
+    
     // Upright tool rack spars on +Y face
     mirrorX()
         translate(startT) rotate(rotateZ) {
@@ -248,7 +249,7 @@ module sparsT() {
     // Set of Z crossbars at various heights (to taste)
     for (z=[16*inch, 32*inch, 48*inch, 64*inch]) 
         translate(startT + [0,+sparOD,z]) rotate(rotateX) {
-            make_spar("toolX",chainX-2*toolZDX-8*inch);
+            make_spar("toolX",chainX-2*toolZDX-14*inch);
         }
 }
 
