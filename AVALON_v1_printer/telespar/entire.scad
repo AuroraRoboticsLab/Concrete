@@ -125,7 +125,7 @@ frontY = 5*inch; // added chain on front (open side)
 frontYE = 2*inch;
 backY = 5*inch; // added chain on back (crossbar side)
 backYE = 3*inch; // extra spar on back side
-backYC = -3*inch; // center of back crossbar relative to stepper
+backYC = 3*inch; // center of back crossbar relative to stepper
 
 bottomZE = 4*inch; // bottom extra spar length
 topZ = 4*inch;
