@@ -12,6 +12,9 @@ include <BOSL2/threading.scad>
 // Thickness of plastic around bolts in Z axis chain holder bracket
 Zchain_holder_thick=14;
 
+// Center of Z spar relative to us
+Zsparcenter = [ZrollerDX+sparOD,-1.0*inch,0];
+
 retainOD=3/8*inch+0.2; // retaining bolt outside diameter (plus some print clearance)
 retainP=1/16*inch; // bolt thread pitch (16 TPI)
 
@@ -56,7 +59,7 @@ module Zchain_holder2D() {
     union() {
         // back plate holds everything
         translate([+sparOD/2,-Zchain_holder_thick/2]) {
-            square([0.8*inch,1*inch+Zchain_holder_thick]);
+            square([1.5*inch,1*inch+Zchain_holder_thick]);
         }
         
         // Material around long bolt
@@ -70,6 +73,19 @@ module Zchain_holder2D() {
     }
 }
 
+// Central hole in holder
+module Zchain_holder2Dhole() {
+    wallmin=6;
+    round=6;
+    offset(r=+round) offset(r=-round-wallmin)
+    difference() {
+        Zchain_holder2D();
+        translate(Zsparcenter) {
+            rotate([0,0,90]) spar2Dbolts(2.0);
+        }
+    }
+}
+
 // Z axis holder: secured to Y axis spars with two bolts.  
 //   Long outside bolt transmits forces.
 //   Short 2.5" inside bolt stops rotation. (flush with Z spar face)
@@ -79,7 +95,7 @@ module Zchain_holder() {
             // Basic outline
             linear_extrude(height=Zchain_holder_thick,center=true,convexity=4) 
                 Zchain_holder2D();
-            
+                        
             // Plate connecting to chain
             plateC=[-32,-Zchainedge[2]-5]; plateZ=[32,10]; // extra behind plate
             translate(Zchainedge) rotate([90,0,0]) chain_retain_plate3D()
@@ -108,9 +124,17 @@ module Zchain_holder() {
             }
         }
 
+        // Hole in center
+        if (0) linear_extrude(height=Zchain_holder_thick-4,center=true) 
+            Zchain_holder2Dhole();
+
+        // Cut in spar clearance
+        translate(Zsparcenter) linear_extrude(height=100,center=true)
+            rotate([0,0,90]) spar2Dbolts(2.0);
+
         // Cut in the big structural bolts
         translate([-sparOD/2,0,0]) retain_bolt(2.5*inch,extra_len=0.5*inch); 
-        translate([-sparOD/2,+1.0*inch,0]) retain_bolt(5*inch);
+        translate([-sparOD/2,+1.0*inch,0]) retain_bolt(5*inch,extra_len=0.5*inch);
         
         // Re-cut the small retain bolt holes (got stomped by chamfer)
         translate(Zchainedge) rotate([90,0,0]) chain_retain_holes(0.8*inch);
@@ -121,7 +145,7 @@ module Zchain_holder() {
             
             if (is_undef(entire)) 
             translate([+sparOD/2+0.5*inch,0.5*inch,0]) linear_extrude(height=1,center=true)
-                rotate([0,0,-90]) scale([-1,1,1]) text("Zc v1A",size=5,halign="center",valign="center");
+                rotate([0,0,-90]) scale([-1,1,1]) text("Zc v1B",size=5,halign="center",valign="center");
 
         }
     }
