@@ -15,6 +15,11 @@ Orion Lawlor, lawlor@alaska.edu, 2025-10-15 (Public Domain)
 include <roller_frame.scad> //<- basic frame
 include <AuroraSCAD/axes3D.scad>
 
+// Shrink down roller frame default dimensions to get more travel
+bearingYDX=35;
+rframeDX=45;
+
+
 // Start of plastic from spar centerline, Y roller plate, measured along local Y (cross spar)
 plateYS = sparOD/2+2;
 plateYF = 5.0; // minimum floor thickness of plate in front
@@ -63,8 +68,8 @@ module Yroller_cross() {
     mirrorX() 
     hull() {
         for (p=[
-            [40,-bearingYDY], // X spar side
-            [-55,+bearingYDY] // chain side
+            [32,-bearingYDY], // X spar side
+            [-40,+bearingYDY] // chain side
         ]) translate(p) circle(d=XsparW);
     }
 }
@@ -117,7 +122,7 @@ module Yroller_frontframe3D()
                     offset(r=-1.5*rframeW) Yroller_heavy2D();
                 }
             
-            rframe_bearing_retain(+1,rframeW,plateYS+plateYF,3);
+            rframe_bearing_retain(+1,rframeW,plateYS+plateYF,5);
             
             rframe_chain_attachC()
                 chain_retain_plate3D() rframe_chain_bolt2D();
@@ -131,7 +136,7 @@ module Yroller_frontframe3D()
                     chain_retain_plate3D(40) rframe_chain_bolt2D();
                 mirrorX() translate(rframe_center_points[0])
                     translate([0,plateYS,0]) rotate([-90,0,0])
-                    cylinder(d1=14,d2=32,h=12);
+                    cylinder(d1=14,d2=32,h=14);
             }
             
             // Surround top of XY bolt
@@ -146,7 +151,7 @@ module Yroller_frontframe3D()
         rframe_chain_attachC() chain_retain_holes();
         rframe_bolts();
         
-        XY_boltT() cylinder(d=sparbolt,h=25,center=true);
+        XY_boltT() cylinder(d=sparbolt,h=50,center=true);
         
         if (is_undef(entire)) 
         XY_boltB()
@@ -174,7 +179,7 @@ module Yroller_backframe3D()
                 }
             }
             
-            rframe_bearing_retain(-1,rframeW,-plateYS-plateYB,3);
+            rframe_bearing_retain(-1,rframeW,-plateYS-plateYB,4);
         }
         
         Yroller_bearing_rod_holes(-1);
@@ -208,10 +213,12 @@ module Yroller_demo(spar=1) {
 
 if (is_undef(entire)) 
 {
-    Yroller_demo();
-    
-    //printable_Yfrontframe();
-    //printable_Ybackframe();
+    if (0) { // demo mode
+        Yroller_demo();
+    } else { // printable parts
+        printable_Yfrontframe();
+        //printable_Ybackframe();
+    }
 }
 
 

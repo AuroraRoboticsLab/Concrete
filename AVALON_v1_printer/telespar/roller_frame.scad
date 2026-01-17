@@ -47,7 +47,7 @@ rframeS=sparbolt; // size of main walls
 
 // Center of chain that we grab above us
 XchainC = [+1.5*inch/2,sparOD/2+chainC[2],-chainC[0]-chain_sprocketR];
-XchainDX = 3.0*inch; // start points of chain retainer (needs to be integer multiple of chain link distance)
+XchainDX = rframeDX + 15; // was 3.0*inch; // start points of chain retainer
 
 // Put children at chain attachment points
 module rframe_chain_attachC() {
@@ -85,11 +85,11 @@ module rframe_centers() {
 
 // Space for bolts holding sides together
 module rframe_bolts() {
-    rframe_centers() cylinder(d=sparbolt,h=sparOD+40,center=true);
+    rframe_centers() cylinder(d=sparbolt,h=sparOD+50,center=true);
 }
 // Space for bolts hex heads above Y=0
 module rframe_bolthex() {
-    rframe_centers() cylinder(d=sparbolthex+2,h=sparOD+40);
+    rframe_centers() cylinder(d=sparbolthex+2,h=sparOD+50);
 }
 
 // Put children at the centers of the Y constraint bearings
@@ -245,7 +245,7 @@ module rframe_heavyplate(topslot=25, bottomtrim=-22, roundIn=3, trim=0)
             union() {
                 difference() {
                     rframe_baseframe2D(enlarge=rframeW,trim=trim);
-                    translate([0,topslot-200]) square([1.95*rframeDX,400],center=true);
+                    translate([0,topslot-200]) square([1.94*rframeDX,400],center=true);
                 }
                 children();
             }
