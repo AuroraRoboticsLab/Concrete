@@ -1,0 +1,8 @@
+Derived from:
+https://www.thingiverse.com/thing:861360
+Customizable RAMPS 1.4 box in OpenSCAD
+Professional3D, June 02, 2015
+CC BY-NC-SA
+
+
+
