@@ -1,0 +1,101 @@
+Control system: uses Raspberry Pi 4 and Klipper. 
+
+
+# Setup Log
+
+Klipper installation is via "MainsailOS", which is just Klipper with Mainsail preinstalled, based on Raspberry Pi OS (version Bookworm):
+https://github.com/mainsail-crew/MainsailOS
+
+Plugging a hardwired Ethernet connection gets an IP address with a working mainsail HTTP connection, and can run updates from there OK.  Needs printer.cfg.
+
+
+
+
+
+mcu(atmega2560)
+Version: v0.13.0-455-gabda66d6e
+Load: 0.08, Awake: 0.00, Freq: 16 MHz,
+
+Host(aarch64, 64bit)
+Version: v0.13.0-455-gabda66d6e
+OS: Debian GNU/Linux 12 (bookworm)
+Distro: MainsailOS 2.2.2 (bookworm)
+Load: 0.08, Mem: 297.3 MB / 3.5 GB , Temp: 37°C
+eth0 (10.0.0.81) : Bandwidth: 2.6 kB/s , Received: 836.5 kB , Transmitted: 9.1 MB
+
+
+Mounted SD card on Linux machine and added "olawlor" user, and added to sudo group.  /home/pi (no password) runs klipper and mainsail and such.  Added a "uaf" group that sees config files and such.  www-data is now a member of that group.
+
+Doesn't come with SSH preinstalled, so I did:
+    sudo apt update
+    sudo apt upgrade
+    sudo apt install openssh-server
+
+Need to set up /etc/ssh/sshd_config to allow logins, disable DNS delay.
+
+Add a decent MATE desktop (gnome 2) with:
+sudo apt install mate-desktop-environment-extras lightdm firefox
+
+Add a buggy LXDE GUI with:
+sudo apt install lxde-core lightdm firefox
+
+
+Webcam is recognized by not accessible by default, so:
+
+root@mainsailos:/etc/udev/rules.d# cat > /etc/udev/rules.d/50-video.rules
+SUBSYSTEM=="video4linux", KERNEL=="video[0-9]*", GROUP="video", MODE="0660"
+root@mainsailos:/etc/udev/rules.d# sudo udevadm control --reload-rules
+root@mainsailos:/etc/udev/rules.d# sudo udevadm trigger
+root@mainsailos:/etc/udev/rules.d# ls -al /dev/video*
+crw-rw----+ 1 root video 81, 14 Jan  6 01:17 /dev/video0
+crw-rw----+ 1 root video 81, 15 Jan  6 01:17 /dev/video1
+
+The crowsnest.conf web UI file editor doesn't seem work.
+
+
+
+
+To build the Klipper firmware, you go into ~/klipper and run menuconfig.
+The default is AVR and atmega2560, default baud rate is 250k.
+
+sudo service klipper stop
+make
+make flash FLASH_DEVICE=/dev/ttyACM0
+sudo service klipper start
+
+(It's 40KB of flash program.)
+
+
+Most of the work is in setting up a printer.cfg file
+
+https://github.com/Klipper3d/klipper/blob/master/docs/Config_Reference.md
+
+
+
+
+You *can* have multiple MCU sections, and this is typical for Voron.
+
+[mcu]
+##	Obtain definition by "ls -l /dev/serial/by-id/" then unplug to verify
+##--------------------------------------------------------------------
+serial: /dev/serial/by-id/usb-Klipper_lpc1768_08020202F7125653B944B54E000000F5-if00
+
+[mcu z]
+##	MCU for Z steppers
+serial: /dev/serial/by-id/usb-Klipper_lpc1768_2101040425265253A768F34C040000F5-if00
+
+
+E.g., a USB Arduino Mega:
+/dev/serial/by-id/usb-Arduino__www.arduino.cc__0042_95536333730351904241-if00
+
+
+
+
+
+
+
+
+
+
+
+
